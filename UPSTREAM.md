@@ -1,0 +1,22 @@
+# Upstream provenance
+
+`kress_fleet` is a GPL-3.0 derivative project based in part on concepts,
+structure and code from MTrab's Home Assistant / Worx-Landroid projects:
+
+- https://github.com/MTrab/landroid_cloud
+- https://github.com/MTrab/pyworxcloud
+
+The Kress Fleet backend implemented here substantially diverges from the legacy
+cloud backend. Fleet-specific work includes the observed Fleet browser SSO flow,
+Fleet REST discovery, Fleet map/coverage processing, AWS IoT MQTT authorization,
+live telemetry decoding, multi-mower handling and Home Assistant live-map
+rendering.
+
+Fleet-specific modifications began on 2026-08-21. Early private development
+builds used `landroid_fleet`; the public Home Assistant domain starts as
+`kress_fleet` with version 0.3.0.
+
+The exact upstream commit used during the earliest local prototyping was not
+recorded. This does not change the GPL-3.0 licensing/attribution of the reused
+material; this file documents the known project-level provenance without
+claiming a more precise commit history than is available.

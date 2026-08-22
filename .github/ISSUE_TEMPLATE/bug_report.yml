@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible Kress Fleet integration problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste passwords, cookies, XSRF/OAuth values, MQTT tokens/signatures, camera access tokens, ICCID/IMSI values or authenticated headers.
+  - type: input
+    id: version
+    attributes:
+      label: Integration version
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove all secrets and unique account/network identifiers first.
+      render: text

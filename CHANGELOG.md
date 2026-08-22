@@ -1,0 +1,147 @@
+# Changelog
+
+## 0.3.1 - 2026-08-22
+
+- Resolve Fleet product names before Home Assistant first creates newly discovered mower devices, so the post-setup rename/area dialog proposes names such as `Mähgatron` instead of UUID fragments such as `Kress 99337e8f`.
+- Keep the fast startup path for already-known devices by restoring their existing friendly device-registry metadata and skipping the synchronous name lookup when it is not needed.
+- Automatically repair integration-provided UUID fallback names from pre-0.3.1 builds on the next integration reload without touching `name_by_user` overrides.
+- If Fleet product details are temporarily unavailable, fall back to human-readable `Kress Mäher` / model-based names rather than exposing UUID fragments.
+
+## 0.3.0 - 2026-08-22
+
+- First public-release candidate under the permanent Home Assistant domain `kress_fleet`.
+- Rename the component directory/domain from the private-development name `landroid_fleet`.
+- Set `integration_type` to `hub` because one Fleet account/config entry exposes multiple mower devices.
+- Add HACS metadata, HACS validation, hassfest, repository hygiene checks, issue templates and release automation.
+- Remove bundled official Kress/Fleet brand artwork; trademark names remain identification-only.
+- Remove friendly zone-name text from inside live-map polygons. Zone names remain available in the live-map header and `Zone name` sensor.
+- Keep coverage and live-position timestamps localized to the Home Assistant instance timezone.
+- Remove Python bytecode/cache artifacts from the distributable source tree.
+- Add public migration, security, publishing and upstream-provenance documentation.
+
+## Pre-public development history
+
+## 0.2.10 - 2026-08-22
+
+- Render coverage `from` / `to` timestamps in the Home Assistant instance timezone, matching the already-localized live position timestamp.
+- Expose the camera attributes `coverage_from` and `coverage_to` in the Home Assistant instance timezone as well.
+- Keep all Fleet API request/storage timestamps in UTC; only the Home Assistant-facing presentation is localized.
+
+## 0.2.9 - 2026-08-22
+
+- Render the live-map position timestamp in the timezone configured for the Home Assistant instance.
+- Keep coverage `from`/`to` timestamps unchanged in UTC because they represent the Fleet API request boundaries.
+- Include the configured Home Assistant timezone in the SVG cache key so a timezone change cannot reuse a stale footer.
+- No changes to MQTT, coverage calculation, map geometry, zone-name resolution or startup behavior.
+
+## 0.2.8 - 2026-08-21
+
+- Filter numeric-only Fleet metadata values from friendly zone names and zone ID/name mappings.
+- Resolve the live MQTT `dat.cut.z` value strictly against the discovered Fleet zone ID/name map.
+- Load active map detail as a Home Assistant background task so the `Zone name` sensor can resolve names without first opening the live-map camera.
+- Add `current_zone_id` to the live-map diagnostics alongside `current_zone_name`.
+- Coverage remains lazy and the MQTT/startup background-task fixes from 0.2.6 are unchanged.
+
+## 0.2.7 - 2026-08-21
+
+- Improved named-zone discovery across Fleet map detail, product-item detail and MQTT `cfg`.
+- Recognizes Fleet named area/section/region/partition containers as mowing zones.
+- Preserves zone semantics when a named area stores its polygon under `boundary`.
+- `Zone name` now resolves explicit zone ID/name mappings from all cached Fleet sources.
+- Live-map diagnostics expose only zone names and contributing source types, never raw map/product payloads.
+
+
+## 0.2.6 - 2026-08-21
+
+- Fix Home Assistant bootstrap being held open by the lifetime `KressFleetMqtt._connection_loop()` task.
+- Start the MQTT maintenance loop with Home Assistant's config-entry background-task API so it no longer participates in startup waiting.
+- Run product-detail enrichment as a config-entry background task as well.
+- No change to Fleet authentication, MQTT protocol, entities, commands, map rendering, coverage, or No-Go behavior.
+
+## 0.2.5 - 2026-08-21
+
+- Remove mapped mower product-detail lookups from the Home Assistant startup critical path.
+- Discover physical mower UUIDs immediately from Fleet MQTT topics intersected with map allocations.
+- Probe only unmapped MQTT identifiers with a 2.5 second per-item cap so a slow mower can no longer stall startup.
+- Restore known mower name/model/serial metadata from the Home Assistant device registry during fast startup.
+- Enrich product details and last REST status in the background after entities/MQTT are already available.
+- Isolate periodic product refreshes per mower with an 8 second timeout so one slow/offline mower cannot delay every Fleet entity.
+
+## 0.2.4 - 2026-08-21
+
+- Speed up Home Assistant startup by removing the blocking initial full refresh.
+- Map detail and potentially multi-megabyte coverage are now loaded lazily when a live-map camera is opened.
+- MQTT/entities become available immediately after authentication/discovery.
+- Coverage refreshes only run periodically after a map has actually been loaded.
+- Concurrent camera requests for the same map/range are deduplicated.
+
+## 0.2.3 - 2026-08-21
+
+- Replace the red live-position dot with a compact Fleet-style robotic mower marker.
+- Hide mower labels when a map has only one mower.
+- Show mower names only when multiple mowers share the same Fleet map.
+
+## 0.2.2 - 2026-08-21
+
+- Distinguish active, inactive and unknown-state No-Go/exclusion geometry.
+- Render active No-Go areas in Fleet red; render explicitly disabled No-Go areas grey/translucent with a dashed outline.
+- Keep unknown No-Go state red as a fail-safe when Fleet changes private schema fields.
+- Recognize common Fleet-style activation fields (`enabled`, `active`, `disabled`, `state`, `status`, and common variants) only within No-Go context, never from the map-version `active` flag.
+- Add camera diagnostics: `no_go_active`, `no_go_inactive`, `no_go_unknown`, and `no_go_state_keys`.
+
+## 0.2.1 - 2026-08-21
+
+- Add local Home Assistant brand assets (`brand/icon.png` and `brand/logo.png`) for HA 2026.3+.
+- Match Fleet map colors more closely: red No-Go, light-green not-yet-covered map area, dark-green covered/mowed area.
+- Render path/passage geometry in orange when the Fleet map payload exposes it.
+- Preserve user-visible zone labels while parsing nested Fleet map geometry and draw unique zone names on the live-map camera.
+- Add a `Zone name` sensor and camera diagnostics (`zone_names`, `current_zone_name`) when Fleet exposes a numeric zone-to-name mapping.
+- Keep the numeric `Zone` sensor unchanged for automation compatibility.
+
+## 0.2.0 - 2026-08-21
+
+- Add a per-mower **Coverage-Zeitraum** select with Today / last 2 through last 7 calendar days.
+- Coverage requests now use local midnight of the first selected day and refresh immediately when the select changes.
+- Multi-day history refreshes at a reduced cadence while mowing to avoid re-downloading multi-megabyte static history every minute.
+- Keep coverage de-duplication map-aware **and** period-aware when multiple mowers share a map.
+- Render Fleet `/maps/{id}` geometry below the coverage overlay, including recognized work boundaries and zones.
+- Render recognized No-Go/exclusion areas with a visible hatched layer above coverage.
+- Add schema-tolerant map geometry parsing for coordinate arrays, `{lat,lng}` objects and GeoJSON-style nested coordinates.
+- Add small camera diagnostics (`map_shapes`, `map_boundaries`, `no_go_zones`, `map_zones`) without exposing raw coordinates.
+- Fetch `/maps` once per Fleet location and map detail once per unique active map instead of once per mower.
+
+## 0.1.7 - 2026-08-21
+
+- Move paho MQTT TLS certificate setup (`tls_set`) to Home Assistant's executor so system CA loading no longer blocks the event loop.
+- No changes to the confirmed Fleet SSO, REST discovery, coverage or MQTT authentication flow.
+
+## 0.1.6 - 2026-08-21
+
+- Confirmed the Fleet browser SSO flow end-to-end: `/api/actor` now authenticates successfully.
+- Handle Fleet MQTT credential blocks that expose a companion MQTT-only identifier for each physical mower.
+- Ignore identifiers whose `/product-items/{uuid}` lookup returns HTTP 404 instead of creating phantom Home Assistant devices.
+- Prevent a single product-item 404 from failing the entire coordinator refresh.
+- Add discovery diagnostics that report MQTT identifier count versus real product mower count without logging UUIDs.
+- Prefer the product UUID embedded in MQTT payloads over companion topic identifiers so live telemetry can still be associated correctly.
+
+## 0.1.5 - 2026-08-21
+
+- Replaced the legacy password-grant/session bootstrap with the real Fleet browser SSO flow.
+- Starts authentication at `fleet.kress.com/login` so Fleet generates its current OAuth client, state and PKCE challenge/verifier itself.
+- Automatically parses and submits the Kress Identity login form while preserving hidden CSRF fields and cookies.
+- Follows the authorization-code callback back to Fleet and reuses the resulting Laravel/XSRF session.
+- Re-runs Fleet SSO automatically after HTTP 401/403/419.
+- Added safe SSO diagnostics that log only hosts/paths, status codes, field names and cookie names, never passwords, codes, state values or tokens.
+
+## 0.1.4 - 2026-08-21
+
+- Fix a config-flow deadlock when Fleet rejects the first `/api/actor` request and session re-bootstrap is required.
+- Add hard setup/reauth timeouts so a failed cloud login can no longer leave a Home Assistant config flow stuck forever.
+- Add a lightweight account probe during configuration instead of fully loading every mower while the setup dialog is open.
+- Discover product details concurrently for accounts with several owned/shared mowers.
+- Add safe HTTP-stage debug logging without credentials or tokens.
+
+## 0.1.3 - 2026-08-21
+
+- Send Kress OAuth grants as JSON, matching the current async pyworxcloud implementation.
+- Do not close Home Assistant-managed aiohttp sessions.

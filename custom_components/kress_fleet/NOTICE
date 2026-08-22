@@ -1,0 +1,30 @@
+Kress Fleet for Home Assistant (kress_fleet)
+Upstream attribution and modification notice
+
+This project is a modified/derivative work based in part on ideas, structure,
+and code from the following GPL-3.0 projects:
+
+  Landroid Cloud
+  https://github.com/MTrab/landroid_cloud
+  Copyright: MTrab and the respective Landroid Cloud contributors
+  License: GNU General Public License v3.0 (GPL-3.0)
+
+  pyWorxCloud
+  https://github.com/MTrab/pyworxcloud
+  Copyright: MTrab and the respective pyWorxCloud contributors
+  License: GNU General Public License v3.0 (GPL-3.0)
+
+The Kress Fleet adaptation is a modified work and is not an official release
+of either upstream project. Fleet-specific modifications began on 2026-08-21.
+Early private development builds used the Home Assistant domain landroid_fleet;
+the public project was renamed to kress_fleet before its first public release.
+
+The code and original project text of this derivative work are distributed
+under GPL-3.0; see LICENSE.
+
+Kress, Fleet, Positec, Worx, Landxcape and related names, marks and artwork are
+not relicensed by this project. This repository intentionally does not bundle
+official Kress/Fleet logo artwork.
+
+No endorsement by MTrab, the upstream contributors, Kress, Positec, Worx,
+Landxcape, Home Assistant, or the Open Home Foundation is claimed or implied.

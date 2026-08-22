@@ -1,0 +1,31 @@
+{
+  "title": "Kress Fleet",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Kress Fleet",
+        "description": "Sign in with the same Kress account used for Fleet.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Kress Fleet",
+        "description": "Enter the current Kress password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to Kress Fleet",
+      "invalid_auth": "Invalid Kress credentials or Fleet session could not be created",
+      "no_mowers": "No Kress Fleet mower could be discovered"
+    },
+    "abort": {
+      "already_configured": "This Kress Fleet account is already configured",
+      "reauth_successful": "Kress Fleet was reauthenticated successfully"
+    }
+  }
+}

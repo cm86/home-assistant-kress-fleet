@@ -1,0 +1,20 @@
+{
+  "domain": "kress_fleet",
+  "name": "Kress Fleet",
+  "codeowners": [
+    "@cm86"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/cm86/home-assistant-kress-fleet",
+  "integration_type": "hub",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/cm86/home-assistant-kress-fleet/issues",
+  "loggers": [
+    "custom_components.kress_fleet",
+    "paho.mqtt"
+  ],
+  "requirements": [
+    "paho-mqtt==2.1.0"
+  ],
+  "version": "0.3.1"
+}

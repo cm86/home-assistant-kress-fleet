@@ -1,0 +1,193 @@
+# Kress Fleet for Home Assistant
+
+> **Unofficial / experimental custom integration.** This project is not affiliated with,
+> endorsed by, or sponsored by Kress, Positec, MTrab, or Home Assistant.
+
+Native Home Assistant integration for the current **Kress Fleet** platform using the Fleet
+web application's private REST/SSO/MQTT interfaces.
+
+**Home Assistant domain:** `kress_fleet`  
+**License:** GPL-3.0  
+**Minimum Home Assistant version:** 2026.8.0
+
+The public `kress_fleet` domain starts with version **0.3.0**. Earlier development builds used
+the domain `landroid_fleet`; see [Migration from landroid_fleet](#migration-from-landroid_fleet).
+
+> **Device names:** On first setup, Kress Fleet resolves each mower's Fleet-assigned friendly name before Home Assistant creates the device. The rename/area dialog should therefore show names such as `Mähgatron` instead of UUID-based placeholders.
+
+## Features
+
+- Kress Fleet sign-in with email + password; no manually copied cookies/tokens
+- automatic discovery of owned and shared Fleet mowers across multiple locations
+- one Home Assistant device per physical mower
+- native `lawn_mower` entity with Start / Pause / Dock
+- live MQTT telemetry over WebSockets
+- live GPS `device_tracker`
+- battery, status, signal, firmware, numeric zone and friendly **Zone name** sensors
+- cloud, MQTT, RTK, rain and charging diagnostics
+- active Fleet map discovery
+- live-map camera with work-map geometry, coverage and No-Go areas
+- active No-Go areas in red; disabled No-Go areas in grey/dashed style
+- compact live mower marker; mower names only when multiple mowers share a map
+- per-mower coverage period selector: Today through the last 7 calendar days
+- coverage de-duplication when multiple mowers share the same map/window
+- Home Assistant instance timezone for coverage and position timestamps shown in the live map
+- background/lazy loading so multi-megabyte map coverage does not block Home Assistant startup
+
+Friendly zone names are resolved from Fleet metadata and shown in the **Zone name** sensor and
+live-map header. Zone names are intentionally **not** drawn inside map polygons.
+
+## Installation with HACS
+
+After this repository has been published on GitHub:
+
+1. Open **HACS**.
+2. Add `https://github.com/cm86/home-assistant-kress-fleet` as a custom
+   repository of type **Integration**.
+3. Install **Kress Fleet**.
+4. Restart Home Assistant.
+5. Go to **Settings -> Devices & services -> Add integration -> Kress Fleet**.
+6. Sign in with the same Kress account used for Fleet.
+
+For maintainers: replace `cm86` before publishing; see
+[PUBLISHING.md](PUBLISHING.md).
+
+## Manual installation
+
+Copy:
+
+```text
+custom_components/kress_fleet
+```
+
+to:
+
+```text
+/config/custom_components/kress_fleet
+```
+
+Restart Home Assistant and add **Kress Fleet** from **Settings -> Devices & services**.
+
+No YAML configuration is required.
+
+## Migration from `landroid_fleet`
+
+`kress_fleet` is intentionally a new Home Assistant domain. Home Assistant domains are stable
+identifiers and cannot be renamed in place, so the old development entry is not automatically
+migrated.
+
+For an existing test installation:
+
+1. Note any entity/device customizations you want to keep.
+2. Remove the old **Kress Fleet** config entry that came from `landroid_fleet`.
+3. Delete `/config/custom_components/landroid_fleet`.
+4. Install `custom_components/kress_fleet`.
+5. Restart Home Assistant.
+6. Add **Kress Fleet** again and sign in.
+
+Do **not** keep both domains installed at the same time; they would discover the same physical
+mowers twice.
+
+## Live map and coverage
+
+The live-map camera is rendered locally from Fleet map detail + coverage data. No Google Maps
+API key is required or exposed.
+
+Layer scheme:
+
+- light green: map area not covered in the selected period
+- dark green: covered / mowed area
+- red: active No-Go / exclusion area
+- grey dashed: disabled No-Go area
+
+Each mower exposes a **Coverage-Zeitraum** select:
+
+- Heute
+- Letzten 2 Tage
+- Letzten 3 Tage
+- Letzten 4 Tage
+- Letzten 5 Tage
+- Letzten 6 Tage
+- Letzten 7 Tage
+
+Changing the select triggers an immediate coverage refresh. Afterwards the selected period is
+polled automatically:
+
+- Today while working: about every 60 seconds
+- 2-7 days while working: about every 5 minutes
+- idle coverage: about every 10 minutes
+
+Large coverage JSON remains in coordinator memory and is deliberately not stored as entity
+attributes or written to Recorder.
+
+### Timezone handling
+
+Fleet API timestamps remain UTC internally. The **coverage from/to** timestamps and the live
+mower **position** timestamp displayed in Home Assistant are converted to the timezone
+configured for the Home Assistant instance (for example `Europe/Berlin`), including DST.
+
+## Multiple mowers / shared maps
+
+One config entry represents the Fleet account, not one mower. All accessible physical mowers
+are discovered, including shared mowers returned by Fleet.
+
+When multiple mowers use the same Fleet map and coverage window, `/coverage` is fetched once
+and the in-memory snapshot is shared. Live MQTT state and GPS remain separate per mower.
+
+## Dashboard example
+
+```yaml
+type: picture-entity
+entity: camera.YOUR_MOWER_LIVE_MAP
+show_name: false
+show_state: false
+camera_view: auto
+```
+
+The companion **Kress Fleet Card** is maintained as a separate HACS dashboard repository; it is
+not bundled with this integration.
+
+## Debug logging
+
+Temporarily enable:
+
+```yaml
+logger:
+  logs:
+    custom_components.kress_fleet: debug
+```
+
+When sharing logs or browser captures, remove credentials and secrets. In particular, never
+publish passwords, session cookies, XSRF values, OAuth authorization codes, MQTT tokens or
+signatures, Home Assistant camera access tokens, ICCID/IMSI values, or raw authenticated request
+headers.
+
+## Private API / stability warning
+
+Kress Fleet does not provide a public API contract for the interfaces used here. The integration
+is based on behavior observed in the Fleet web application and can break when Kress changes its
+SSO flow, REST schemas, map formats, MQTT authorization, topics, or payloads.
+
+The current implementation has been live-tested with multiple accessible mowers across several
+Fleet locations, but that does not guarantee compatibility with every Kress model/account.
+
+## Trademark / branding
+
+Kress, Fleet, Positec, Worx and related product names and marks belong to their respective
+owners. They are used only to identify compatibility. This repository intentionally does **not**
+bundle the official Kress/Fleet logo or other Kress artwork.
+
+A neutral community icon can be submitted separately to `home-assistant/brands` if this
+integration is prepared for HACS default-repository inclusion.
+
+## Credits and license
+
+This project is a modified/derivative work based in part on concepts, structure and code from:
+
+- [MTrab/landroid_cloud](https://github.com/MTrab/landroid_cloud)
+- [MTrab/pyworxcloud](https://github.com/MTrab/pyworxcloud)
+
+Both upstream projects are GPL-3.0. This derivative project is distributed under GPL-3.0 as
+well. See [LICENSE](LICENSE), [NOTICE](NOTICE) and [UPSTREAM.md](UPSTREAM.md).
+
+No endorsement by the upstream authors or contributors is claimed or implied.

@@ -1,0 +1,31 @@
+{
+  "title": "Kress Fleet",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit Kress Fleet verbinden",
+        "description": "Melde dich mit demselben Kress-Konto an, das du für Fleet verwendest.",
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Kress Fleet erneut verbinden",
+        "description": "Gib das aktuelle Kress-Passwort ein.",
+        "data": {
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zu Kress Fleet fehlgeschlagen",
+      "invalid_auth": "Kress-Anmeldedaten ungültig oder Fleet-Sitzung konnte nicht erstellt werden",
+      "no_mowers": "Kein Kress-Fleet-Mäher gefunden"
+    },
+    "abort": {
+      "already_configured": "Dieses Kress-Fleet-Konto ist bereits eingerichtet",
+      "reauth_successful": "Kress Fleet wurde erfolgreich erneut angemeldet"
+    }
+  }
+}

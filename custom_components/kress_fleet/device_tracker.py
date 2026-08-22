@@ -28,7 +28,7 @@ async def async_setup_entry(
 class KressFleetLocation(KressFleetEntity, TrackerEntity):
     """Live GPS position from dat.modules['4G'].gps.coo."""
 
-    _attr_name = "Location"
+    _attr_translation_key = "location"
     _attr_source_type = SourceType.GPS
 
     def __init__(self, coordinator, mower_uuid: str) -> None:

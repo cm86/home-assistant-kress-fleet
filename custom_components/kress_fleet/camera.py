@@ -10,8 +10,10 @@ from __future__ import annotations
 from homeassistant.components.camera import Camera
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .const import DOMAIN
 from .coordinator import KressFleetCoordinator
 from .entity import mower_device_info
 from .map_renderer import (
@@ -43,7 +45,7 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
     """Render Fleet work map, selected coverage range and live mower position."""
 
     _attr_has_entity_name = True
-    _attr_name = "Live map"
+    _attr_translation_key = "live_map"
     _attr_should_poll = False
 
     def __init__(self, coordinator: KressFleetCoordinator, mower_uuid: str) -> None:
@@ -56,6 +58,8 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
         self.content_type = "image/svg+xml"
         self._cached_key: tuple[object, ...] | None = None
         self._cached_svg: bytes | None = None
+        self._map_translation_language: str | None = None
+        self._map_translations: dict[str, str] = {}
 
     @property
     def mower(self):
@@ -133,8 +137,11 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             )
         )
         timezone_name = self.hass.config.time_zone if self.hass is not None else "UTC"
+        language = self.hass.config.language if self.hass is not None else "en"
+        translations = await self._async_get_map_translations(language)
         key = (
             timezone_name,
+            language,
             mower.coverage_revision,
             mower.coverage_days,
             mower.coverage_from,
@@ -152,7 +159,29 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
         )
         if key != self._cached_key or self._cached_svg is None:
             self._cached_svg = render_mower_map(
-                mower, peers, timezone_name=timezone_name
+                mower,
+                peers,
+                timezone_name=timezone_name,
+                translations=translations,
             )
             self._cached_key = key
         return self._cached_svg
+
+    async def _async_get_map_translations(self, language: str) -> dict[str, str]:
+        """Return localized live-map captions for the HA instance language."""
+        if self.hass is None:
+            return {}
+        if self._map_translation_language == language and self._map_translations:
+            return self._map_translations
+
+        resources = await async_get_translations(
+            self.hass, language, "common", {DOMAIN}
+        )
+        prefix = f"component.{DOMAIN}.common.map."
+        self._map_translations = {
+            key.removeprefix(prefix): value
+            for key, value in resources.items()
+            if key.startswith(prefix)
+        }
+        self._map_translation_language = language
+        return self._map_translations

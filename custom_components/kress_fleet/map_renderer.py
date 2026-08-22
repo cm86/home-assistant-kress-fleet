@@ -13,6 +13,7 @@ from html import escape
 import json
 import math
 from statistics import median
+from collections.abc import Mapping
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -198,6 +199,7 @@ def render_mower_map(
     peers: list[FleetMower] | None = None,
     *,
     timezone_name: str = "UTC",
+    translations: Mapping[str, str] | None = None,
 ) -> bytes:
     """Return an SVG with Fleet work map below selected-period coverage."""
     peers = [peer for peer in (peers or []) if peer.uuid != mower.uuid]
@@ -287,11 +289,11 @@ def render_mower_map(
         ),
         (
             '<text x="30" y="65" font-family="sans-serif" font-size="16" '
-            f'fill="#dce7df">{escape(_header_line(mower))}</text>'
+            f'fill="#dce7df">{escape(_header_line(mower, translations))}</text>'
         ),
         (
             '<text x="30" y="87" font-family="sans-serif" font-size="13" '
-            f'fill="#aac0b1">Coverage: {escape(_period_label(mower.coverage_days))}</text>'
+            f'fill="#aac0b1">{escape(_tr(translations, "coverage", "Coverage"))}: {escape(_period_label(mower.coverage_days, translations))}</text>'
         ),
     ]
 
@@ -348,12 +350,12 @@ def render_mower_map(
     elif map_shapes:
         parts.append(
             '<text x="550" y="390" text-anchor="middle" font-family="sans-serif" '
-            'font-size="20" fill="#66736a">Keine Coverage im gewählten Zeitraum</text>'
+            f'font-size="20" fill="#66736a">{escape(_tr(translations, "no_coverage", "No coverage in the selected period"))}</text>'
         )
     else:
         parts.append(
             '<text x="550" y="390" text-anchor="middle" font-family="sans-serif" '
-            'font-size="20" fill="#66736a">Noch keine Karten-/Coverage-Daten</text>'
+            f'font-size="20" fill="#66736a">{escape(_tr(translations, "no_map_data", "No map/coverage data yet"))}</text>'
         )
 
     # 3) No-Go zones stay visible above coverage.  Fleet can disable an
@@ -392,18 +394,18 @@ def render_mower_map(
                 f'<rect x="{legend_x - 10}" y="{legend_y - 20}" width="{legend_width}" height="42" '
                 'rx="7" fill="white" fill-opacity="0.82"/>',
                 f'<rect x="{legend_x}" y="{legend_y - 9}" width="20" height="12" fill="#9BE2B9" stroke="#159657"/>',
-                f'<text x="{legend_x + 27}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">Noch nicht gemäht</text>',
+                f'<text x="{legend_x + 27}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">{escape(_tr(translations, "not_mowed", "Not mowed"))}</text>',
                 f'<rect x="{legend_x + 140}" y="{legend_y - 9}" width="20" height="12" fill="#FF3344" stroke="#D9152B"/>',
-                f'<text x="{legend_x + 167}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">No-Go aktiv</text>',
+                f'<text x="{legend_x + 167}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">{escape(_tr(translations, "no_go_active", "No-Go active"))}</text>',
                 f'<rect x="{legend_x + 263}" y="{legend_y - 9}" width="20" height="12" fill="#08AA57" fill-opacity="0.88" stroke="#078648"/>',
-                f'<text x="{legend_x + 290}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">Gemäht</text>',
+                f'<text x="{legend_x + 290}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">{escape(_tr(translations, "mowed", "Mowed"))}</text>',
             ]
         )
         if inactive_no_go_present:
             parts.extend(
                 [
                     f'<rect x="{legend_x + 365}" y="{legend_y - 9}" width="20" height="12" fill="#D9DEDC" fill-opacity="0.7" stroke="#78827D" stroke-dasharray="4 2"/>',
-                    f'<text x="{legend_x + 392}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">No-Go aus</text>',
+                    f'<text x="{legend_x + 392}" y="{legend_y + 2}" font-family="sans-serif" font-size="12" fill="#344039">{escape(_tr(translations, "no_go_inactive", "No-Go off"))}</text>',
                 ]
             )
 
@@ -445,7 +447,7 @@ def render_mower_map(
     parts.append(
         f'<text x="{WIDTH - 25}" y="{HEIGHT - 18}" text-anchor="end" '
         'font-family="sans-serif" font-size="13" fill="#69746d">'
-        f'{escape(_footer_line(mower, timezone_name))}</text>'
+        f'{escape(_footer_line(mower, timezone_name, translations))}</text>'
     )
     parts.append("</svg>")
     return "".join(parts).encode("utf-8")
@@ -1299,24 +1301,50 @@ def _valid_geo(lat: float, lon: float) -> bool:
     return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
-def _period_label(days: int) -> str:
+def _tr(
+    translations: Mapping[str, str] | None,
+    key: str,
+    fallback: str,
+    **placeholders: object,
+) -> str:
+    """Return one localized live-map label with a safe English fallback."""
+    template = translations.get(key, fallback) if translations else fallback
+    try:
+        return template.format(**placeholders)
+    except (KeyError, ValueError):
+        return fallback.format(**placeholders)
+
+
+def _period_label(
+    days: int, translations: Mapping[str, str] | None = None
+) -> str:
     if days <= 1:
-        return "Heute"
-    return f"Letzten {days} Tage"
+        return _tr(translations, "period.today", "Today")
+    return _tr(translations, "period.last_days", "Last {days} days", days=days)
 
 
-def _header_line(mower: FleetMower) -> str:
+def _header_line(
+    mower: FleetMower, translations: Mapping[str, str] | None = None
+) -> str:
     chunks = []
     if mower.battery_percent is not None:
-        chunks.append(f"Battery {mower.battery_percent}%")
-    chunks.append(f"Status {mower.status.replace('_', ' ')}")
+        chunks.append(
+            f"{_tr(translations, 'battery', 'Battery')} {mower.battery_percent}%"
+        )
+    status = _tr(
+        translations,
+        f"status.{mower.status}",
+        mower.status.replace("_", " "),
+    )
+    chunks.append(f"{_tr(translations, 'status_label', 'Status')} {status}")
     if mower.zone is not None:
         zone_label = current_zone_name(mower)
+        zone = _tr(translations, "zone", "Zone")
         chunks.append(
-            f"Zone {mower.zone}: {zone_label}" if zone_label else f"Zone {mower.zone}"
+            f"{zone} {mower.zone}: {zone_label}" if zone_label else f"{zone} {mower.zone}"
         )
     if mower.rssi is not None:
-        chunks.append(f"Signal {mower.rssi} dBm")
+        chunks.append(f"{_tr(translations, 'signal', 'Signal')} {mower.rssi} dBm")
     return "   |   ".join(chunks)
 
 
@@ -1346,14 +1374,29 @@ def timestamp_local(value: datetime | str, timezone_name: str) -> str:
     return parsed.astimezone(timezone).isoformat()
 
 
-def _footer_line(mower: FleetMower, timezone_name: str = "UTC") -> str:
+def _footer_line(
+    mower: FleetMower,
+    timezone_name: str = "UTC",
+    translations: Mapping[str, str] | None = None,
+) -> str:
     chunks = []
     if mower.map_name:
         chunks.append(mower.map_name)
     if mower.coverage_from:
-        chunks.append(f"ab {timestamp_local(mower.coverage_from, timezone_name)}")
+        chunks.append(
+            f"{_tr(translations, 'from', 'from')} "
+            f"{timestamp_local(mower.coverage_from, timezone_name)}"
+        )
     if mower.coverage_to:
-        chunks.append(f"bis {timestamp_local(mower.coverage_to, timezone_name)}")
+        chunks.append(
+            f"{_tr(translations, 'to', 'to')} "
+            f"{timestamp_local(mower.coverage_to, timezone_name)}"
+        )
     if mower.last_update:
-        chunks.append(f"Position {timestamp_local(mower.last_update, timezone_name)}")
-    return " | ".join(chunks) or "Kress Fleet live map"
+        chunks.append(
+            f"{_tr(translations, 'position', 'Position')} "
+            f"{timestamp_local(mower.last_update, timezone_name)}"
+        )
+    return " | ".join(chunks) or _tr(
+        translations, "live_map", "Kress Fleet live map"
+    )

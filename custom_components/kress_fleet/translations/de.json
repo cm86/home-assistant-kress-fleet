@@ -27,5 +27,140 @@
       "already_configured": "Dieses Kress-Fleet-Konto ist bereits eingerichtet",
       "reauth_successful": "Kress Fleet wurde erfolgreich erneut angemeldet"
     }
+  },
+  "entity": {
+    "camera": {
+      "live_map": {
+        "name": "Live-Karte"
+      }
+    },
+    "device_tracker": {
+      "location": {
+        "name": "Position"
+      }
+    },
+    "select": {
+      "coverage_period": {
+        "name": "Coverage-Zeitraum",
+        "state": {
+          "today": "Heute",
+          "last_2_days": "Letzte 2 Tage",
+          "last_3_days": "Letzte 3 Tage",
+          "last_4_days": "Letzte 4 Tage",
+          "last_5_days": "Letzte 5 Tage",
+          "last_6_days": "Letzte 6 Tage",
+          "last_7_days": "Letzte 7 Tage"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Akku"
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "idle": "Bereit",
+          "docked": "Angedockt",
+          "starting": "Startet",
+          "returning": "Kehrt zurück",
+          "mowing": "Mäht",
+          "error": "Fehler",
+          "escaped_digital_fence": "Digitale Grenze verlassen",
+          "zoning": "Wechselt Zone",
+          "edge_cut": "Kantenschnitt",
+          "paused": "Pausiert",
+          "searching_for_zone": "Sucht Zone",
+          "unknown": "Unbekannt"
+        }
+      },
+      "zone": {
+        "name": "Zone"
+      },
+      "zone_name": {
+        "name": "Zonenname"
+      },
+      "error": {
+        "name": "Fehlercode"
+      },
+      "rssi": {
+        "name": "Signalstärke"
+      },
+      "connection": {
+        "name": "Verbindung"
+      },
+      "battery_temperature": {
+        "name": "Akkutemperatur"
+      },
+      "battery_voltage": {
+        "name": "Akkuspannung"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "last_update": {
+        "name": "Letzte Aktualisierung"
+      },
+      "map": {
+        "name": "Karte"
+      },
+      "coverage_polygons": {
+        "name": "Coverage-Polygone"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Cloud-Verbindung"
+      },
+      "mqtt_connected": {
+        "name": "Live-MQTT"
+      },
+      "rtk_ok": {
+        "name": "RTK"
+      },
+      "rain": {
+        "name": "Regen"
+      },
+      "charging": {
+        "name": "Lädt"
+      }
+    }
+  },
+  "common": {
+    "map": {
+      "coverage": "Coverage",
+      "no_coverage": "Keine Coverage im gewählten Zeitraum",
+      "no_map_data": "Noch keine Karten-/Coverage-Daten",
+      "not_mowed": "Noch nicht gemäht",
+      "mowed": "Gemäht",
+      "no_go_active": "No-Go aktiv",
+      "no_go_inactive": "No-Go aus",
+      "battery": "Akku",
+      "status_label": "Status",
+      "zone": "Zone",
+      "signal": "Signal",
+      "from": "ab",
+      "to": "bis",
+      "position": "Position",
+      "live_map": "Kress Fleet Live-Karte",
+      "period": {
+        "today": "Heute",
+        "last_days": "Letzte {days} Tage"
+      },
+      "status": {
+        "idle": "Bereit",
+        "docked": "Angedockt",
+        "starting": "Startet",
+        "returning": "Kehrt zurück",
+        "mowing": "Mäht",
+        "error": "Fehler",
+        "escaped_digital_fence": "Digitale Grenze verlassen",
+        "zoning": "Wechselt Zone",
+        "edge_cut": "Kantenschnitt",
+        "paused": "Pausiert",
+        "searching_for_zone": "Sucht Zone",
+        "unknown": "Unbekannt"
+      }
+    }
   }
 }

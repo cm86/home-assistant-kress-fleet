@@ -27,5 +27,140 @@
       "already_configured": "This Kress Fleet account is already configured",
       "reauth_successful": "Kress Fleet was reauthenticated successfully"
     }
+  },
+  "entity": {
+    "camera": {
+      "live_map": {
+        "name": "Live map"
+      }
+    },
+    "device_tracker": {
+      "location": {
+        "name": "Location"
+      }
+    },
+    "select": {
+      "coverage_period": {
+        "name": "Coverage period",
+        "state": {
+          "today": "Today",
+          "last_2_days": "Last 2 days",
+          "last_3_days": "Last 3 days",
+          "last_4_days": "Last 4 days",
+          "last_5_days": "Last 5 days",
+          "last_6_days": "Last 6 days",
+          "last_7_days": "Last 7 days"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Battery"
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "idle": "Idle",
+          "docked": "Docked",
+          "starting": "Starting",
+          "returning": "Returning",
+          "mowing": "Mowing",
+          "error": "Error",
+          "escaped_digital_fence": "Outside digital fence",
+          "zoning": "Changing zone",
+          "edge_cut": "Edge cut",
+          "paused": "Paused",
+          "searching_for_zone": "Searching for zone",
+          "unknown": "Unknown"
+        }
+      },
+      "zone": {
+        "name": "Zone"
+      },
+      "zone_name": {
+        "name": "Zone name"
+      },
+      "error": {
+        "name": "Error code"
+      },
+      "rssi": {
+        "name": "Signal strength"
+      },
+      "connection": {
+        "name": "Connection"
+      },
+      "battery_temperature": {
+        "name": "Battery temperature"
+      },
+      "battery_voltage": {
+        "name": "Battery voltage"
+      },
+      "firmware": {
+        "name": "Firmware"
+      },
+      "last_update": {
+        "name": "Last update"
+      },
+      "map": {
+        "name": "Map"
+      },
+      "coverage_polygons": {
+        "name": "Coverage polygons"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Cloud connection"
+      },
+      "mqtt_connected": {
+        "name": "Live MQTT"
+      },
+      "rtk_ok": {
+        "name": "RTK"
+      },
+      "rain": {
+        "name": "Rain"
+      },
+      "charging": {
+        "name": "Charging"
+      }
+    }
+  },
+  "common": {
+    "map": {
+      "coverage": "Coverage",
+      "no_coverage": "No coverage in the selected period",
+      "no_map_data": "No map/coverage data yet",
+      "not_mowed": "Not mowed",
+      "mowed": "Mowed",
+      "no_go_active": "No-Go active",
+      "no_go_inactive": "No-Go off",
+      "battery": "Battery",
+      "status_label": "Status",
+      "zone": "Zone",
+      "signal": "Signal",
+      "from": "from",
+      "to": "to",
+      "position": "Position",
+      "live_map": "Kress Fleet live map",
+      "period": {
+        "today": "Today",
+        "last_days": "Last {days} days"
+      },
+      "status": {
+        "idle": "Idle",
+        "docked": "Docked",
+        "starting": "Starting",
+        "returning": "Returning",
+        "mowing": "Mowing",
+        "error": "Error",
+        "escaped_digital_fence": "Outside digital fence",
+        "zoning": "Changing zone",
+        "edge_cut": "Edge cut",
+        "paused": "Paused",
+        "searching_for_zone": "Searching for zone",
+        "unknown": "Unknown"
+      }
+    }
   }
 }

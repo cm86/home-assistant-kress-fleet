@@ -1,11 +1,22 @@
 # Changelog
 
+## 0.3.2 - 2026-08-22
+
+- Localize user-visible entity names through Home Assistant translation keys instead of hard-coded English/German names.
+- Make coverage select values language-neutral internally and translate the displayed period names from the Home Assistant language (`Today` / `Heute`, `Last 2 days` / `Letzte 2 Tage`, etc.).
+- Localize all live-map captions, legend labels, status text and footer prefixes using the Home Assistant instance language, with English fallback for unsupported languages.
+- Keep entity IDs, attribute keys and raw select/state values stable and language-neutral for automations.
+- Note for upgrades from 0.3.1: coverage service/automation option values are now the stable keys (`today`, `last_2_days`, ...); the UI translates them for display.
+- Document English coverage examples consistently in the English README.
+- Remove the remaining private-development domain note from public notices.
+- Align the internal `VERSION` constant with the manifest version.
+
 ## 0.3.1 - 2026-08-22
 
 - Resolve Fleet product names before Home Assistant first creates newly discovered mower devices, so the post-setup rename/area dialog proposes names such as `Mähgatron` instead of UUID fragments such as `Kress 99337e8f`.
 - Keep the fast startup path for already-known devices by restoring their existing friendly device-registry metadata and skipping the synchronous name lookup when it is not needed.
 - Automatically repair integration-provided UUID fallback names from pre-0.3.1 builds on the next integration reload without touching `name_by_user` overrides.
-- If Fleet product details are temporarily unavailable, fall back to human-readable `Kress Mäher` / model-based names rather than exposing UUID fragments.
+- If Fleet product details are temporarily unavailable, fall back to human-readable model-based names rather than exposing UUID fragments.
 
 ## 0.3.0 - 2026-08-22
 

@@ -32,7 +32,7 @@ class KressFleetCoveragePeriodSelect(KressFleetEntity, SelectEntity):
     """Choose the calendar range shown by the coverage/live map."""
 
     _attr_has_entity_name = True
-    _attr_name = "Coverage-Zeitraum"
+    _attr_translation_key = "coverage_period"
     _attr_icon = "mdi:calendar-range"
     _attr_options = list(COVERAGE_PERIOD_OPTIONS)
 
@@ -46,7 +46,7 @@ class KressFleetCoveragePeriodSelect(KressFleetEntity, SelectEntity):
         for option, option_days in COVERAGE_PERIOD_OPTIONS.items():
             if option_days == days:
                 return option
-        return "Heute"
+        return "today"
 
     async def async_select_option(self, option: str) -> None:
         """Apply a new history window and refresh coverage immediately."""

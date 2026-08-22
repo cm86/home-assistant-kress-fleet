@@ -45,6 +45,7 @@ def _is_placeholder_mower_name(name: str | None, mower_uuid: str) -> bool:
     return normalized in {
         "Kress Mäher",
         "Kress Mower",
+        "Kress Fleet",
         f"Kress {mower_uuid[:8]}",
     }
 
@@ -154,9 +155,9 @@ async def _async_prepare_initial_device_names(
         elif model:
             mower.name = f"Kress {model} {index}"
         elif len(still_unresolved) == 1:
-            mower.name = "Kress Mäher"
+            mower.name = "Kress Fleet"
         else:
-            mower.name = f"Kress Mäher {index}"
+            mower.name = f"Kress Fleet {index}"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

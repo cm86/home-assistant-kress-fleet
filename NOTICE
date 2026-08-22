@@ -16,8 +16,6 @@ and code from the following GPL-3.0 projects:
 
 The Kress Fleet adaptation is a modified work and is not an official release
 of either upstream project. Fleet-specific modifications began on 2026-08-21.
-Early private development builds used the Home Assistant domain landroid_fleet;
-the public project was renamed to kress_fleet before its first public release.
 
 The code and original project text of this derivative work are distributed
 under GPL-3.0; see LICENSE.

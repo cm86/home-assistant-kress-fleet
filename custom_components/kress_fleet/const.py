@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "kress_fleet"
 NAME: Final = "Kress Fleet"
-VERSION: Final = "0.3.0"
+VERSION: Final = "0.3.2"
 
 PLATFORMS: Final = [
     Platform.LAWN_MOWER,
@@ -43,11 +43,11 @@ MQTT_REFRESH_MARGIN_SECONDS: Final = 120
 
 
 COVERAGE_PERIOD_OPTIONS: Final[dict[str, int]] = {
-    "Heute": 1,
-    "Letzten 2 Tage": 2,
-    "Letzten 3 Tage": 3,
-    "Letzten 4 Tage": 4,
-    "Letzten 5 Tage": 5,
-    "Letzten 6 Tage": 6,
-    "Letzten 7 Tage": 7,
+    "today": 1,
+    "last_2_days": 2,
+    "last_3_days": 3,
+    "last_4_days": 4,
+    "last_5_days": 5,
+    "last_6_days": 6,
+    "last_7_days": 7,
 }

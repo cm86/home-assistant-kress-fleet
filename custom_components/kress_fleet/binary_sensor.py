@@ -33,27 +33,27 @@ class FleetBinaryDescription(BinarySensorEntityDescription):
 BINARY_SENSORS: tuple[FleetBinaryDescription, ...] = (
     FleetBinaryDescription(
         key="online",
-        name="Cloud connection",
+        translation_key="online",
         value_fn=lambda mower: mower.online,
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
     ),
     FleetBinaryDescription(
         key="mqtt_connected",
-        name="Live MQTT",
+        translation_key="mqtt_connected",
         value_fn=lambda mower: mower.mqtt_connected,
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FleetBinaryDescription(
         key="rtk_ok",
-        name="RTK",
+        translation_key="rtk_ok",
         value_fn=lambda mower: mower.rtk_ok,
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     FleetBinaryDescription(
         key="rain",
-        name="Rain",
+        translation_key="rain",
         value_fn=lambda mower: mower.rain,
         device_class=BinarySensorDeviceClass.MOISTURE,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -61,7 +61,7 @@ BINARY_SENSORS: tuple[FleetBinaryDescription, ...] = (
     ),
     FleetBinaryDescription(
         key="charging",
-        name="Charging",
+        translation_key="charging",
         value_fn=lambda mower: mower.battery_charging,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,

@@ -10,6 +10,8 @@ web application's private REST/SSO/MQTT interfaces.
 **License:** GPL-3.0  
 **Minimum Home Assistant version:** 2026.8.0
 
+**Languages:** English and German are bundled. User-visible entity names, select options and live-map captions follow the Home Assistant instance language; unsupported languages fall back to English.
+
 > **Device names:** On first setup, Kress Fleet resolves each mower's Fleet-assigned friendly name before Home Assistant creates the device. The rename/area dialog should therefore show names such as `Mähgatron` instead of UUID-based placeholders.
 
 ## Features
@@ -46,8 +48,7 @@ After this repository has been published on GitHub:
 5. Go to **Settings -> Devices & services -> Add integration -> Kress Fleet**.
 6. Sign in with the same Kress account used for Fleet.
 
-For maintainers: replace `cm86` before publishing; see
-[PUBLISHING.md](PUBLISHING.md).
+Maintainer/release notes are in [PUBLISHING.md](PUBLISHING.md).
 
 ## Manual installation
 
@@ -79,15 +80,17 @@ Layer scheme:
 - red: active No-Go / exclusion area
 - grey dashed: disabled No-Go area
 
-Each mower exposes a **Coverage-Zeitraum** select:
+Each mower exposes a **Coverage period** select. In an English Home Assistant instance the options are:
 
-- Heute
-- Letzten 2 Tage
-- Letzten 3 Tage
-- Letzten 4 Tage
-- Letzten 5 Tage
-- Letzten 6 Tage
-- Letzten 7 Tage
+- Today
+- Last 2 days
+- Last 3 days
+- Last 4 days
+- Last 5 days
+- Last 6 days
+- Last 7 days
+
+On a German Home Assistant instance the same stable internal options are presented as `Heute`, `Letzte 2 Tage`, and so on. The raw option keys remain language-neutral for automation stability.
 
 Changing the select triggers an immediate coverage refresh. Afterwards the selected period is
 polled automatically:

@@ -599,7 +599,7 @@ class KressFleetApi:
                     uuid=mower_uuid,
                     user_id=user_id,
                     location_id=location_id,
-                    name="Kress Mäher",
+                    name="Kress Fleet",
                     map_id=map_id,
                     map_name=map_name,
                     command_in=_string_or_none(topics.get("command_in")),

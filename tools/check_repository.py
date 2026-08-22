@@ -18,11 +18,6 @@ for path in ROOT.rglob("*"):
     if path.is_file() and path.suffix == ".pyc":
         errors.append(f"Compiled Python file must not be committed: {path.relative_to(ROOT)}")
 
-for forbidden in ("landroid_fleet/", "custom_components.landroid_fleet"):
-    for path in [ROOT / "README.md", ROOT / "custom_components/kress_fleet/manifest.json"]:
-        if path.exists() and forbidden in path.read_text(errors="ignore"):
-            errors.append(f"Stale public-domain reference {forbidden!r} in {path.relative_to(ROOT)}")
-
 manifest_path = ROOT / "custom_components" / "kress_fleet" / "manifest.json"
 manifest = json.loads(manifest_path.read_text())
 if manifest.get("domain") != "kress_fleet":

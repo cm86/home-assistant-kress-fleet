@@ -12,8 +12,6 @@ web application's private REST/SSO/MQTT interfaces.
 
 **Languages:** English and German are bundled. User-visible entity names, select options and live-map captions follow the Home Assistant instance language; unsupported languages fall back to English.
 
-> **Device names:** On first setup, Kress Fleet resolves each mower's Fleet-assigned friendly name before Home Assistant creates the device. The rename/area dialog should therefore show names such as `Mähgatron` instead of UUID-based placeholders.
-
 ## Features
 
 - Kress Fleet sign-in with email + password; no manually copied cookies/tokens
@@ -37,9 +35,6 @@ Friendly zone names are resolved from Fleet metadata and shown in the **Zone nam
 live-map header. Zone names are intentionally **not** drawn inside map polygons.
 
 ## Installation with HACS
-
-After this repository has been published on GitHub:
-
 1. Open **HACS**.
 2. Add `https://github.com/cm86/home-assistant-kress-fleet` as a custom
    repository of type **Integration**.
@@ -47,9 +42,6 @@ After this repository has been published on GitHub:
 4. Restart Home Assistant.
 5. Go to **Settings -> Devices & services -> Add integration -> Kress Fleet**.
 6. Sign in with the same Kress account used for Fleet.
-
-Maintainer/release notes are in [PUBLISHING.md](PUBLISHING.md).
-
 ## Manual installation
 
 Copy:

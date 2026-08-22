@@ -10,9 +10,6 @@ web application's private REST/SSO/MQTT interfaces.
 **License:** GPL-3.0  
 **Minimum Home Assistant version:** 2026.8.0
 
-The public `kress_fleet` domain starts with version **0.3.0**. Earlier development builds used
-the domain `landroid_fleet`; see [Migration from landroid_fleet](#migration-from-landroid_fleet).
-
 > **Device names:** On first setup, Kress Fleet resolves each mower's Fleet-assigned friendly name before Home Assistant creates the device. The rename/area dialog should therefore show names such as `Mähgatron` instead of UUID-based placeholders.
 
 ## Features
@@ -69,24 +66,6 @@ to:
 Restart Home Assistant and add **Kress Fleet** from **Settings -> Devices & services**.
 
 No YAML configuration is required.
-
-## Migration from `landroid_fleet`
-
-`kress_fleet` is intentionally a new Home Assistant domain. Home Assistant domains are stable
-identifiers and cannot be renamed in place, so the old development entry is not automatically
-migrated.
-
-For an existing test installation:
-
-1. Note any entity/device customizations you want to keep.
-2. Remove the old **Kress Fleet** config entry that came from `landroid_fleet`.
-3. Delete `/config/custom_components/landroid_fleet`.
-4. Install `custom_components/kress_fleet`.
-5. Restart Home Assistant.
-6. Add **Kress Fleet** again and sign in.
-
-Do **not** keep both domains installed at the same time; they would discover the same physical
-mowers twice.
 
 ## Live map and coverage
 

@@ -12,9 +12,7 @@ Fleet REST discovery, Fleet map/coverage processing, AWS IoT MQTT authorization,
 live telemetry decoding, multi-mower handling and Home Assistant live-map
 rendering.
 
-Fleet-specific modifications began on 2026-08-21. Early private development
-builds used `landroid_fleet`; the public Home Assistant domain starts as
-`kress_fleet` with version 0.3.0.
+Fleet-specific modifications began on 2026-08-21.
 
 The exact upstream commit used during the earliest local prototyping was not
 recorded. This does not change the GPL-3.0 licensing/attribution of the reused

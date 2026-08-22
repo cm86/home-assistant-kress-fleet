@@ -10,14 +10,13 @@
 ## 0.3.0 - 2026-08-22
 
 - First public-release candidate under the permanent Home Assistant domain `kress_fleet`.
-- Rename the component directory/domain from the private-development name `landroid_fleet`.
 - Set `integration_type` to `hub` because one Fleet account/config entry exposes multiple mower devices.
 - Add HACS metadata, HACS validation, hassfest, repository hygiene checks, issue templates and release automation.
 - Remove bundled official Kress/Fleet brand artwork; trademark names remain identification-only.
 - Remove friendly zone-name text from inside live-map polygons. Zone names remain available in the live-map header and `Zone name` sensor.
 - Keep coverage and live-position timestamps localized to the Home Assistant instance timezone.
 - Remove Python bytecode/cache artifacts from the distributable source tree.
-- Add public migration, security, publishing and upstream-provenance documentation.
+- Add public security, publishing and upstream-provenance documentation.
 
 ## Pre-public development history
 

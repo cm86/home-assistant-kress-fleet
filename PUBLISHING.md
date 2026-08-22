@@ -50,9 +50,3 @@ later create original neutral community artwork, place at least `icon.png` under
 
 HACS default inclusion also expects a real GitHub release, repository description,
 topics, issues enabled and passing HACS validation.
-
-## Migration note
-
-`kress_fleet` is a new Home Assistant domain. Existing private/test installations
-of `landroid_fleet` must remove the old config entry/component and add the new
-integration once. Do not publish an automatic `.storage` mutation script.

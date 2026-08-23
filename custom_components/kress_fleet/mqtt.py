@@ -36,6 +36,23 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def zone_start_command(zone_id: int) -> dict[str, Any]:
+    """Build the RTK single-zone start command used by the Fleet web UI.
+
+    The command shape was observed from Fleet's own outgoing MQTT commandIn
+    traffic. UUID, timestamp and message ID are added by async_publish_command.
+    """
+    normalized_zone_id = int(zone_id)
+    if normalized_zone_id < 0:
+        raise ValueError("Fleet zone ID must be non-negative")
+    return {
+        "cmd": 1,
+        "ls": 34,
+        "le": 0,
+        "cut": {"zo": 0, "b": 1, "z": [normalized_zone_id]},
+    }
+
+
 @dataclass(slots=True)
 class _ConnectedClient:
     client: mqtt.Client

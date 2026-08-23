@@ -18,6 +18,7 @@ web application's private REST/SSO/MQTT interfaces.
 - automatic discovery of owned and shared Fleet mowers across multiple locations
 - one Home Assistant device per physical mower
 - native `lawn_mower` entity with Start / Pause / Dock
+- targeted RTK zone mowing with a per-mower **Mowing zone** select and **Mow selected zone** button
 - live MQTT telemetry over WebSockets
 - live GPS `device_tracker`
 - battery, status, signal, firmware, numeric zone and friendly **Zone name** sensors
@@ -49,15 +50,17 @@ station** / **Ladestation nicht erreichbar**. The mapping is based on the
 community-maintained Worx/Kress protocol documentation:
 https://github.com/iobroker-community-adapters/ioBroker.worx/blob/master/docs/en/README.md
 
-### Temporary RTK zone telemetry probe
+### Targeted RTK zone mowing
 
-Version 0.3.13 uses a read-only probe on the normal Fleet `commandOut` telemetry
-to help document the RTK zone-start payload safely. It does **not** subscribe to
-`commandIn`. On the mower entity, `diagnostic_zone_probe_sc_once` and
-`diagnostic_zone_probe_cut_task` expose only the relevant one-time mowing/task
-state after privacy filtering. Identifiers, credentials and coordinates are
-redacted. This diagnostic will be removed again after RTK zone start has been
-implemented.
+Version 0.3.14 adds native targeted-zone control based on the command emitted by
+the official Fleet web application. Each mower exposes a **Mowing zone** select
+whose options are built dynamically from that mower's Fleet map, plus a **Mow
+selected zone** button. No mower UUID, zone number or zone name is hard-coded.
+
+The integration sends the Fleet RTK single-zone command shape
+`cmd=1`, `ls=34`, `le=0`, `cut.zo=0`, `cut.b=1`, with `cut.z` containing the
+selected Fleet zone ID. The normal MQTT publisher adds the mower UUID, timestamp
+and command ID. The v0.3.13 temporary zone-probe attributes have been removed.
 
 ## Installation with HACS
 1. Open **HACS**.

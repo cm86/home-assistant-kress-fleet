@@ -22,10 +22,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fleet select entities."""
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(
-        KressFleetCoveragePeriodSelect(coordinator, mower_uuid)
-        for mower_uuid in coordinator.data
-    )
+    entities = []
+    for mower_uuid in coordinator.data:
+        entities.append(KressFleetCoveragePeriodSelect(coordinator, mower_uuid))
+        entities.append(KressFleetTargetZoneSelect(coordinator, mower_uuid))
+    async_add_entities(entities)
 
 
 class KressFleetCoveragePeriodSelect(KressFleetEntity, SelectEntity):
@@ -55,3 +56,51 @@ class KressFleetCoveragePeriodSelect(KressFleetEntity, SelectEntity):
         await self.coordinator.async_set_coverage_days(
             self.mower_uuid, COVERAGE_PERIOD_OPTIONS[option]
         )
+
+
+def _target_zone_options(mower) -> list[tuple[str, int]]:
+    """Return stable display option -> Fleet zone ID pairs for one mower."""
+    if not mower.map_id or mower.zone_catalog_map_id != mower.map_id:
+        return []
+
+    labels = list(mower.zone_id_name_map.values())
+    counts = {label: labels.count(label) for label in set(labels)}
+    result: list[tuple[str, int]] = []
+    for zone_id, label in mower.zone_id_name_map.items():
+        option = label if counts.get(label, 0) == 1 else f"{label} (Zone {zone_id})"
+        result.append((option, zone_id))
+    return result
+
+
+class KressFleetTargetZoneSelect(KressFleetEntity, SelectEntity):
+    """Choose a named Fleet RTK zone for the next targeted mowing command."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "target_zone"
+    _attr_icon = "mdi:map-marker-path"
+
+    def __init__(self, coordinator, mower_uuid: str) -> None:
+        super().__init__(coordinator, mower_uuid, "target_zone")
+
+    @property
+    def options(self) -> list[str]:
+        """Return friendly zone names from the cached Fleet map catalog."""
+        return [option for option, _zone_id in _target_zone_options(self.mower)]
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the currently armed target zone, if the user selected one."""
+        target = self.mower.target_zone_id
+        for option, zone_id in _target_zone_options(self.mower):
+            if zone_id == target:
+                return option
+        return None
+
+    async def async_select_option(self, option: str) -> None:
+        """Arm one exact Fleet zone ID for the targeted start button."""
+        for candidate, zone_id in _target_zone_options(self.mower):
+            if candidate == option:
+                self.mower.target_zone_id = zone_id
+                self.coordinator.async_push_update()
+                return
+        raise ValueError(f"Unsupported Fleet target zone: {option}")

@@ -51,6 +51,9 @@
           "last_6_days": "Letzte 6 Tage",
           "last_7_days": "Letzte 7 Tage"
         }
+      },
+      "target_zone": {
+        "name": "Mähzone"
       }
     },
     "sensor": {
@@ -171,6 +174,11 @@
       },
       "charging": {
         "name": "Lädt"
+      }
+    },
+    "button": {
+      "mow_selected_zone": {
+        "name": "Ausgewählte Zone mähen"
       }
     }
   },

@@ -20,6 +20,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import FleetAuthError, FleetConnectionError, FleetError, KressFleetApi
 from .const import DEFAULT_COVERAGE_INTERVAL, DOMAIN
+from .map_renderer import mower_zone_id_name_map
 from .models import FleetMower
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,6 +48,30 @@ class KressFleetCoordinator(DataUpdateCoordinator[dict[str, FleetMower]]):
         self.mqtt = None
         self._refresh_counter = 0
         self._map_load_locks: dict[tuple[int, int, str, int], asyncio.Lock] = {}
+
+    async def _async_refresh_zone_catalog(
+        self, mowers: list[FleetMower]
+    ) -> None:
+        """Cache Fleet zone ID/name mappings without blocking the event loop."""
+        candidates = [
+            mower
+            for mower in mowers
+            if mower.map_id and mower.map_detail is not None
+        ]
+        if not candidates:
+            return
+
+        mappings = await asyncio.gather(
+            *(
+                self.hass.async_add_executor_job(mower_zone_id_name_map, mower)
+                for mower in candidates
+            )
+        )
+        for mower, mapping in zip(candidates, mappings, strict=True):
+            mower.zone_id_name_map = dict(mapping)
+            mower.zone_catalog_map_id = mower.map_id
+            if mower.target_zone_id not in mower.zone_id_name_map:
+                mower.target_zone_id = None
 
     async def _async_update_data(self) -> dict[str, FleetMower]:
         try:
@@ -219,6 +244,9 @@ class KressFleetCoordinator(DataUpdateCoordinator[dict[str, FleetMower]]):
             _LOGGER.debug("Background Fleet zone metadata lost authentication")
             return
 
+        await self._async_refresh_zone_catalog(
+            [mower for group in groups.values() for mower in group]
+        )
         self.async_set_updated_data(dict(self.data))
         _LOGGER.debug(
             "Background Fleet zone metadata loaded for %s active map(s)",
@@ -250,6 +278,7 @@ class KressFleetCoordinator(DataUpdateCoordinator[dict[str, FleetMower]]):
                 detail = await self.api.async_get_map_detail(
                     mower.user_id, mower.location_id, mower.map_id
                 )
+                map_candidates = []
                 for candidate in self.data.values():
                     if (
                         candidate.user_id == mower.user_id
@@ -258,6 +287,8 @@ class KressFleetCoordinator(DataUpdateCoordinator[dict[str, FleetMower]]):
                     ):
                         candidate.map_detail = detail
                         candidate.map_revision += 1
+                        map_candidates.append(candidate)
+                await self._async_refresh_zone_catalog(map_candidates)
 
             if need_coverage:
                 coverage, coverage_from, coverage_to = await self.api.async_get_coverage(

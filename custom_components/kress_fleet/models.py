@@ -104,6 +104,13 @@ class FleetMower:
     # parser use Fleet metadata that is not part of the MQTT payload/map JSON.
     product_detail: dict[str, Any] | None = None
 
+    # Cached, privacy-safe Fleet zone catalog. The expensive map geometry
+    # parsing is done in Home Assistant's executor by the coordinator, not in
+    # SelectEntity properties on the main event loop.
+    zone_id_name_map: dict[int, str] = field(default_factory=dict)
+    zone_catalog_map_id: str | None = None
+    target_zone_id: int | None = None
+
     # Kress protocol-1 telemetry normally reports the active zone in
     # ``dat.cut.z``. Some commandOut snapshots omit that value temporarily even
     # though the mower is still mowing. Remember the last explicitly reported
@@ -133,7 +140,12 @@ class FleetMower:
         # automatically scoped to the map on which it was observed.
         rtk_cfg = self.cfg.get("rtk")
         if isinstance(rtk_cfg, dict) and rtk_cfg.get("map"):
-            self.map_id = str(rtk_cfg["map"])
+            incoming_map_id = str(rtk_cfg["map"])
+            if incoming_map_id != self.map_id:
+                self.map_id = incoming_map_id
+                self.zone_id_name_map = {}
+                self.zone_catalog_map_id = None
+                self.target_zone_id = None
 
         if isinstance(dat, dict):
             previous_status_id = self.status_id

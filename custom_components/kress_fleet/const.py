@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "kress_fleet"
 NAME: Final = "Kress Fleet"
-VERSION: Final = "0.3.13"
+VERSION: Final = "0.3.14"
 
 PLATFORMS: Final = [
     Platform.LAWN_MOWER,
@@ -22,6 +22,7 @@ PLATFORMS: Final = [
     Platform.BINARY_SENSOR,
     Platform.CAMERA,
     Platform.SELECT,
+    Platform.BUTTON,
 ]
 
 FLEET_BASE_URL: Final = "https://fleet.kress.com"

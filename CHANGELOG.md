@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.14 - 2026-08-23
+
+### Added
+
+- Add a per-mower **Mowing zone** select populated dynamically from the mower's Fleet map zone ID/name catalog.
+- Add a **Mow selected zone** button that starts an RTK mowing task in exactly the selected Fleet zone.
+- Use the single-zone MQTT command shape observed from the official Fleet web UI: `cmd=1`, `ls=34`, `le=0`, `cut.zo=0`, `cut.b=1`, and `cut.z=[zone_id]`.
+
+### Safety and compatibility
+
+- Keep the existing native Start / Pause / Dock commands unchanged.
+- Never guess zone IDs: the button is unavailable until the user selects a zone from the current map's cached ID/name catalog.
+- Invalidate the selected target if the mower changes maps or the selected zone no longer exists.
+- Build the map zone catalog in Home Assistant's executor so select-state updates do not reparse map geometry on the main event loop.
+- Remove the temporary v0.3.13 RTK zone-probe attributes now that the exact command is known.
+
 ## 0.3.13 - 2026-08-23
 
 ### Fixed

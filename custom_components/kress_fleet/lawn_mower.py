@@ -7,6 +7,9 @@
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from homeassistant.components.lawn_mower import (
     LawnMowerActivity,
     LawnMowerEntity,
@@ -73,18 +76,21 @@ class KressFleetLawnMower(KressFleetEntity, LawnMowerEntity):
         if self.mower.zone is not None:
             attrs["zone"] = self.mower.zone
 
-        # Temporary protocol diagnostics for discovering how the official Kress
-        # app starts a mower in a selected RTK zone. The stored payload is
-        # privacy-filtered before it ever reaches entity state attributes.
-        attrs["diagnostic_command_capture_ready"] = (
-            self.mower.command_capture_ready
-        )
-        if self.mower.last_command_in_at is not None:
-            attrs["diagnostic_last_command_in_at"] = (
-                self.mower.last_command_in_at.isoformat()
+        # Temporary read-only protocol probe for discovering the RTK
+        # zone-start payload without subscribing to Fleet commandIn. Only the
+        # already received commandOut telemetry blocks that describe one-time
+        # mowing/task state are exposed, after privacy filtering.
+        sc = self.mower.dat.get("sc")
+        if isinstance(sc, dict) and "once" in sc:
+            attrs["diagnostic_zone_probe_sc_once"] = _sanitize_zone_probe(
+                sc.get("once")
             )
-        if self.mower.last_command_in is not None:
-            attrs["diagnostic_last_command_in"] = self.mower.last_command_in
+
+        cut = self.mower.dat.get("cut")
+        if isinstance(cut, dict) and "tsk" in cut:
+            attrs["diagnostic_zone_probe_cut_task"] = _sanitize_zone_probe(
+                cut.get("tsk")
+            )
         return attrs or None
 
     async def async_start_mowing(self) -> None:
@@ -104,3 +110,69 @@ class KressFleetLawnMower(KressFleetEntity, LawnMowerEntity):
             await mqtt_client.async_publish_command(self.mower, payload)
         except RuntimeError as err:
             raise HomeAssistantError(str(err)) from err
+
+
+_ZONE_PROBE_REDACT_KEYS = frozenset(
+    {
+        "access_token",
+        "client_id",
+        "coo",
+        "coordinates",
+        "email",
+        "gps",
+        "lat",
+        "latitude",
+        "lng",
+        "lon",
+        "longitude",
+        "mac",
+        "password",
+        "pos",
+        "position",
+        "serial",
+        "serial_number",
+        "signature",
+        "sn",
+        "token",
+        "uuid",
+    }
+)
+_ZONE_PROBE_UUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
+    r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+)
+_ZONE_PROBE_LONG_SECRET_RE = re.compile(r"^[A-Za-z0-9_+/=-]{48,}$")
+
+
+def _sanitize_zone_probe(value: Any, key: str | None = None) -> Any:
+    """Return small protocol telemetry while redacting private identifiers."""
+    normalized_key = key.lower() if isinstance(key, str) else None
+    if normalized_key in _ZONE_PROBE_REDACT_KEYS:
+        return "<redacted>"
+
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if (
+            _ZONE_PROBE_UUID_RE.fullmatch(stripped)
+            or _ZONE_PROBE_LONG_SECRET_RE.fullmatch(stripped)
+        ):
+            return f"<redacted:str:{len(value)}>"
+        if "@" in stripped and "." in stripped:
+            return "<redacted:email>"
+        if len(value) <= 80:
+            return value
+        return f"<redacted:str:{len(value)}>"
+
+    if isinstance(value, dict):
+        return {
+            str(child_key): _sanitize_zone_probe(child, str(child_key))
+            for child_key, child in list(value.items())[:50]
+        }
+
+    if isinstance(value, list):
+        return [_sanitize_zone_probe(child) for child in value[:50]]
+
+    return f"<{type(value).__name__}>"

@@ -49,15 +49,15 @@ station** / **Ladestation nicht erreichbar**. The mapping is based on the
 community-maintained Worx/Kress protocol documentation:
 https://github.com/iobroker-community-adapters/ioBroker.worx/blob/master/docs/en/README.md
 
-### Temporary Fleet command capture
+### Temporary RTK zone telemetry probe
 
-Version 0.3.12 can temporarily listen for privacy-filtered `commandIn` messages
-so the RTK zone-start payload used by the official Kress app can be documented
-safely. On the mower entity, check `diagnostic_command_capture_ready`; when it is
-`true`, a command issued from the official app is exposed as
-`diagnostic_last_command_in`. Identifiers, credentials and coordinates are
-redacted. This diagnostic will be removed again after the RTK zone command has
-been implemented.
+Version 0.3.13 uses a read-only probe on the normal Fleet `commandOut` telemetry
+to help document the RTK zone-start payload safely. It does **not** subscribe to
+`commandIn`. On the mower entity, `diagnostic_zone_probe_sc_once` and
+`diagnostic_zone_probe_cut_task` expose only the relevant one-time mowing/task
+state after privacy filtering. Identifiers, credentials and coordinates are
+redacted. This diagnostic will be removed again after RTK zone start has been
+implemented.
 
 ## Installation with HACS
 1. Open **HACS**.

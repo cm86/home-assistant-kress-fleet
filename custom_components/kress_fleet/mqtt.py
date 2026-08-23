@@ -229,15 +229,9 @@ class KressFleetMqtt:
         client.reconnect_delay_set(min_delay=5, max_delay=60)
 
         topic_to_mower: dict[str, str] = {}
-        command_in_to_mower: dict[str, str] = {}
-        command_in_subscriptions: dict[int, tuple[str, str]] = {}
         for mower_uuid, topics in items.items():
-            if not isinstance(topics, dict):
-                continue
-            if isinstance(topics.get("command_out"), str):
+            if isinstance(topics, dict) and isinstance(topics.get("command_out"), str):
                 topic_to_mower[str(topics["command_out"])] = str(mower_uuid)
-            if isinstance(topics.get("command_in"), str):
-                command_in_to_mower[str(topics["command_in"])] = str(mower_uuid)
 
         def resolve(value: bool) -> None:
             if not outcome.done():
@@ -254,50 +248,10 @@ class KressFleetMqtt:
             if success:
                 for topic in topic_to_mower:
                     _client.subscribe(topic, qos=1)
-                for topic, item_uuid in command_in_to_mower.items():
-                    result, mid = _client.subscribe(topic, qos=1)
-                    if result == mqtt.MQTT_ERR_SUCCESS:
-                        command_in_subscriptions[mid] = (item_uuid, topic)
-                    else:
-                        loop.call_soon_threadsafe(
-                            self.coordinator.async_set_command_capture_subscription,
-                            item_uuid,
-                            topic,
-                            False,
-                        )
             loop.call_soon_threadsafe(resolve, success)
 
         def on_connect_fail(_client: mqtt.Client, _userdata: Any) -> None:
             loop.call_soon_threadsafe(resolve, False)
-
-        def on_subscribe(
-            _client: mqtt.Client,
-            _userdata: Any,
-            mid: int,
-            reason_codes: Any,
-            _properties: Any,
-        ) -> None:
-            command_subscription = command_in_subscriptions.pop(mid, None)
-            if command_subscription is None:
-                return
-            item_uuid, topic = command_subscription
-            granted = True
-            for code in reason_codes or []:
-                if bool(getattr(code, "is_failure", False)):
-                    granted = False
-                    break
-                try:
-                    if int(code) >= 128:
-                        granted = False
-                        break
-                except (TypeError, ValueError):
-                    pass
-            loop.call_soon_threadsafe(
-                self.coordinator.async_set_command_capture_subscription,
-                item_uuid,
-                topic,
-                granted,
-            )
 
         def on_disconnect(
             _client: mqtt.Client,
@@ -319,15 +273,6 @@ class KressFleetMqtt:
             except UnicodeDecodeError:
                 _LOGGER.debug("Ignoring non-UTF8 Fleet MQTT payload")
                 return
-            if message.topic in command_in_to_mower:
-                loop.call_soon_threadsafe(
-                    self.coordinator.async_handle_mqtt_command_in,
-                    command_in_to_mower.get(message.topic),
-                    message.topic,
-                    text,
-                )
-                return
-
             mower_uuid = topic_to_mower.get(message.topic)
             loop.call_soon_threadsafe(
                 self.coordinator.async_handle_mqtt_payload,
@@ -338,7 +283,6 @@ class KressFleetMqtt:
 
         client.on_connect = on_connect
         client.on_connect_fail = on_connect_fail
-        client.on_subscribe = on_subscribe
         client.on_disconnect = on_disconnect
         client.on_message = on_message
 
@@ -374,7 +318,6 @@ class KressFleetMqtt:
             mower = self.coordinator.data.get(mower_uuid)
             if mower:
                 mower.mqtt_connected = False
-                mower.command_capture_ready = False
             self._mower_clients.pop(mower_uuid, None)
         self.coordinator.async_push_update()
         self._reconnect_event.set()
@@ -385,7 +328,6 @@ class KressFleetMqtt:
         self._mower_clients = {}
         for mower in self.coordinator.data.values():
             mower.mqtt_connected = False
-            mower.command_capture_ready = False
         for item in clients:
             try:
                 item.client.disconnect()

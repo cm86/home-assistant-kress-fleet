@@ -8,10 +8,9 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 import json
 import logging
-import re
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -352,123 +351,6 @@ class KressFleetCoordinator(DataUpdateCoordinator[dict[str, FleetMower]]):
         self.async_set_updated_data(dict(self.data))
 
     @callback
-    def async_set_command_capture_subscription(
-        self,
-        mower_uuid: str | None,
-        topic: str,
-        ready: bool,
-    ) -> None:
-        """Update whether Fleet allowed listening to this mower's commandIn topic."""
-        mower = self._resolve_command_mower(mower_uuid, topic)
-        if mower is None:
-            return
-        mower.command_capture_ready = ready
-        self.async_set_updated_data(dict(self.data))
-
-    @callback
-    def async_handle_mqtt_command_in(
-        self,
-        mower_uuid: str | None,
-        topic: str,
-        payload_text: str,
-    ) -> None:
-        """Capture one commandIn message after removing private identifiers."""
-        try:
-            payload = json.loads(payload_text)
-        except json.JSONDecodeError:
-            _LOGGER.debug("Ignoring malformed Fleet commandIn JSON")
-            return
-        if not isinstance(payload, dict):
-            return
-
-        payload_uuid = payload.get("uuid")
-        if isinstance(payload_uuid, str) and payload_uuid in self.data:
-            mower_uuid = payload_uuid
-
-        mower = self._resolve_command_mower(mower_uuid, topic)
-        if mower is None:
-            _LOGGER.debug("Could not match Fleet commandIn payload to a product mower")
-            return
-
-        mower.last_command_in = _sanitize_command_capture(payload)
-        mower.last_command_in_at = datetime.now(UTC)
-        mower.command_capture_ready = True
-        self.async_set_updated_data(dict(self.data))
-
-    def _resolve_command_mower(self, mower_uuid: str | None, topic: str):
-        """Resolve a commandIn MQTT item/topic to a Fleet product mower."""
-        if mower_uuid and mower_uuid in self.data:
-            return self.data[mower_uuid]
-        for candidate in self.data.values():
-            if candidate.command_in == topic:
-                return candidate
-        return None
-
-    @callback
     def async_push_update(self) -> None:
         """Push in-memory changes to entities without a REST request."""
         self.async_set_updated_data(dict(self.data))
-
-
-_CAPTURE_REDACT_KEYS = frozenset(
-    {
-        "access_token",
-        "client_id",
-        "coo",
-        "coordinates",
-        "email",
-        "gps",
-        "lat",
-        "latitude",
-        "lng",
-        "lon",
-        "longitude",
-        "mac",
-        "password",
-        "pos",
-        "position",
-        "serial",
-        "serial_number",
-        "signature",
-        "sn",
-        "token",
-        "uuid",
-    }
-)
-_UUID_RE = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
-    r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-)
-_LONG_SECRETISH_RE = re.compile(r"^[A-Za-z0-9_+/=-]{48,}$")
-
-
-def _sanitize_command_capture(value: Any, key: str | None = None) -> Any:
-    """Return a useful command shape without retaining private identifiers."""
-    normalized_key = key.lower() if isinstance(key, str) else None
-    if normalized_key in _CAPTURE_REDACT_KEYS:
-        return "<redacted>"
-
-    if value is None or isinstance(value, (bool, int, float)):
-        return value
-
-    if isinstance(value, str):
-        stripped = value.strip()
-        if _UUID_RE.fullmatch(stripped) or _LONG_SECRETISH_RE.fullmatch(stripped):
-            return f"<redacted:str:{len(value)}>"
-        if "@" in stripped and "." in stripped:
-            return "<redacted:email>"
-        # Short textual enum/mode values are useful for protocol analysis.
-        if len(value) <= 80:
-            return value
-        return f"<redacted:str:{len(value)}>"
-
-    if isinstance(value, dict):
-        return {
-            str(child_key): _sanitize_command_capture(child, str(child_key))
-            for child_key, child in value.items()
-        }
-
-    if isinstance(value, list):
-        return [_sanitize_command_capture(child) for child in value[:50]]
-
-    return f"<{type(value).__name__}>"

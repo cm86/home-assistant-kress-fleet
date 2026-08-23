@@ -104,13 +104,6 @@ class FleetMower:
     # parser use Fleet metadata that is not part of the MQTT payload/map JSON.
     product_detail: dict[str, Any] | None = None
 
-    # Temporary, privacy-filtered commandIn capture used to reverse-engineer
-    # Fleet commands issued by the official Kress app. No raw MQTT topic, UUID,
-    # coordinates or credentials are retained here.
-    command_capture_ready: bool = False
-    last_command_in: dict[str, Any] | None = None
-    last_command_in_at: datetime | None = None
-
     # Kress protocol-1 telemetry normally reports the active zone in
     # ``dat.cut.z``. Some commandOut snapshots omit that value temporarily even
     # though the mower is still mowing. Remember the last explicitly reported

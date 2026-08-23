@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.13 - 2026-08-23
+
+### Fixed
+
+- Stop subscribing to Fleet `commandIn` on the primary live MQTT connection. Some Fleet/AWS IoT policies disconnect the whole client when that subscribe is not authorized, which made the mower entity repeatedly become unavailable.
+- Restore the stable `commandOut`-only MQTT subscription used before 0.3.12 so normal live telemetry and mower controls stay connected.
+
+### Diagnostics
+
+- Replace the risky `commandIn` capture with a read-only RTK zone probe based on already received `commandOut` telemetry.
+- Expose privacy-filtered `diagnostic_zone_probe_sc_once` and `diagnostic_zone_probe_cut_task` attributes on the mower entity for the next zone-start test.
+- No new mower command is sent by this release.
+
 ## 0.3.12 - 2026-08-23
 
 ### Added

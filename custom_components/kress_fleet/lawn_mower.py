@@ -72,6 +72,19 @@ class KressFleetLawnMower(KressFleetEntity, LawnMowerEntity):
             attrs["battery"] = self.mower.battery_percent
         if self.mower.zone is not None:
             attrs["zone"] = self.mower.zone
+
+        # Temporary protocol diagnostics for discovering how the official Kress
+        # app starts a mower in a selected RTK zone. The stored payload is
+        # privacy-filtered before it ever reaches entity state attributes.
+        attrs["diagnostic_command_capture_ready"] = (
+            self.mower.command_capture_ready
+        )
+        if self.mower.last_command_in_at is not None:
+            attrs["diagnostic_last_command_in_at"] = (
+                self.mower.last_command_in_at.isoformat()
+            )
+        if self.mower.last_command_in is not None:
+            attrs["diagnostic_last_command_in"] = self.mower.last_command_in
         return attrs or None
 
     async def async_start_mowing(self) -> None:

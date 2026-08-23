@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.12 - 2026-08-23
+
+### Added
+
+- Add a temporary, privacy-filtered Fleet `commandIn` capture to discover the exact RTK zone-start command used by the official Kress app.
+- Expose capture readiness and the last sanitized `commandIn` payload as diagnostic attributes on each `lawn_mower` entity.
+- Redact mower/account identifiers, credentials, coordinates, UUID-like strings and long token-like values before storing captured data.
+
+### Safety
+
+- This release does **not** send any new mower commands and does not change existing start, pause or dock behavior.
+- If the Fleet MQTT policy does not permit subscribing to `commandIn`, `diagnostic_command_capture_ready` remains `false` and normal telemetry/control continues unchanged.
+
 ## 0.3.11 - 2026-08-23
 
 ### Added

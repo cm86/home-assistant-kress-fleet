@@ -49,6 +49,16 @@ station** / **Ladestation nicht erreichbar**. The mapping is based on the
 community-maintained Worx/Kress protocol documentation:
 https://github.com/iobroker-community-adapters/ioBroker.worx/blob/master/docs/en/README.md
 
+### Temporary Fleet command capture
+
+Version 0.3.12 can temporarily listen for privacy-filtered `commandIn` messages
+so the RTK zone-start payload used by the official Kress app can be documented
+safely. On the mower entity, check `diagnostic_command_capture_ready`; when it is
+`true`, a command issued from the official app is exposed as
+`diagnostic_last_command_in`. Identifiers, credentials and coordinates are
+redacted. This diagnostic will be removed again after the RTK zone command has
+been implemented.
+
 ## Installation with HACS
 1. Open **HACS**.
 2. Add `https://github.com/cm86/home-assistant-kress-fleet` as a custom

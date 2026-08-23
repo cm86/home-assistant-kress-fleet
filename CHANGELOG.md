@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.10 - 2026-08-23
+
+### Changed
+
+- Upgrade GitHub Actions checkout and Python setup workflows to the current Node 24 compatible major versions.
+- Generate GitHub release notes directly from the matching version section in `CHANGELOG.md`.
+- Make tagged releases fail early when their version has no changelog entry, preventing empty or misleading HACS release notes.
+
+### Notes
+
+- No change to mower control, Fleet authentication, MQTT handling, Live Map rendering, zone resolution or coverage behavior.
+
 ## 0.3.9 - 2026-08-23
 
 - Fix the Home Assistant translation schema rejected by Hassfest.

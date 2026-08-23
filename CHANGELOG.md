@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.7 - 2026-08-23
+
+- Extend temporary zone diagnostics with safe values from the active Fleet mowing task.
+- Expose only allowlisted task fields (`id`, `st`, `tm`, `tr`) and zone fields (`a`, `id`, `p`, `rtg`, `rtn`) from `dat.cut.tsk[0]`.
+- Continue to redact arbitrary strings and avoid raw MQTT payloads, UUIDs, MAC addresses, coordinates, credentials and tokens.
+- No change to mower commands, zone resolution, map rendering or coverage behavior.
+
 ## 0.3.6 - 2026-08-23
 
 - Extend temporary active-zone diagnostics after Fleet RTK telemetry was observed without `dat.cut.z` and without `dat.lz`.

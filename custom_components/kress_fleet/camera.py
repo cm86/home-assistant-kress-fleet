@@ -274,6 +274,40 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             if key in mower.dat:
                 candidate_blocks[key] = diagnostic_shape(mower.dat.get(key))
 
+        task_details = None
+        if isinstance(cut_task, list) and cut_task:
+            task = cut_task[0]
+            if isinstance(task, dict):
+                task_details = {
+                    key: diagnostic_scalar(task.get(key))
+                    for key in ("id", "st", "tm", "tr")
+                    if key in task
+                }
+
+                zones = task.get("z")
+                if isinstance(zones, list):
+                    task_details["zones"] = []
+                    for index, zone in enumerate(zones[:20]):
+                        if not isinstance(zone, dict):
+                            task_details["zones"].append(
+                                {
+                                    "index": index,
+                                    "value": diagnostic_shape(zone),
+                                }
+                            )
+                            continue
+
+                        zone_details = {"index": index}
+                        for key in ("a", "id", "p", "rtg", "rtn"):
+                            if key in zone:
+                                value = zone.get(key)
+                                if isinstance(value, (dict, list)):
+                                    zone_details[key] = diagnostic_shape(value)
+                                else:
+                                    zone_details[key] = diagnostic_scalar(value)
+
+                        task_details["zones"].append(zone_details)
+
         return {
             "coverage_days": mower.coverage_days,
             "coverage_from": (
@@ -310,6 +344,7 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             "telemetry_cut_keys": cut_keys,
             "telemetry_candidate_blocks": candidate_blocks,
             "telemetry_zone_candidates": find_zone_candidates(mower.dat),
+            "telemetry_cut_task_details": task_details,
         }
 
     def _render_key(

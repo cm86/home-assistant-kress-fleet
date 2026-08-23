@@ -19,6 +19,61 @@ from typing import Any
 _ZONE_CONTEXT_STATUS_IDS = frozenset({2, 3, 7, 12, 31, 32, 33, 34, 103})
 
 
+# Stable, language-neutral mower error states. The numeric Fleet/Worx/Kress
+# protocol code remains exposed separately by ``error_id`` for automations and
+# diagnostics; Home Assistant translates these keys for human-facing UI.
+#
+# The known protocol table is community reverse-engineered and currently
+# covers the classic 0-20 range plus the Vision/RTK 100-120 range.
+ERROR_CODE_STATES: dict[int, str] = {
+    0: "no_error",
+    1: "trapped",
+    2: "lifted",
+    3: "wire_missing",
+    4: "outside_boundary",
+    5: "rain_delay",
+    6: "close_door_to_cut_grass",
+    7: "close_door_to_go_home",
+    8: "blade_motor_fault",
+    9: "wheel_motor_fault",
+    10: "trapped_timeout_fault",
+    11: "upside_down",
+    12: "battery_low",
+    13: "wire_reversed",
+    14: "charge_error",
+    15: "home_search_timeout",
+    16: "wifi_locked",
+    17: "battery_over_temperature",
+    18: "dummy_model",
+    19: "battery_trunk_open_timeout",
+    20: "wire_signal_out_of_sync",
+    100: "charging_station_docking_error",
+    101: "hbi_error",
+    102: "ota_upgrade_error",
+    103: "map_error",
+    104: "excessive_slope",
+    105: "unreachable_zone",
+    106: "unreachable_charging_station",
+    107: "calibration_needed",
+    108: "insufficient_sensor_data",
+    109: "training_start_disallowed",
+    110: "camera_error",
+    111: "lawn_exploration_required",
+    112: "mapping_exploration_failed",
+    113: "rfid_reader_error",
+    114: "headlight_error",
+    115: "missing_charging_station",
+    116: "blade_height_adjustment_blocked",
+    117: "unsupported_blade_height",
+    118: "manual_firmware_upgrade_required",
+    119: "area_limit_exceeded",
+    120: "charging_station_undocking_error",
+}
+ERROR_STATE_OPTIONS: tuple[str, ...] = tuple(
+    dict.fromkeys((*ERROR_CODE_STATES.values(), "unknown_error"))
+)
+
+
 @dataclass(slots=True)
 class FleetMower:
     """A Kress Fleet mower."""
@@ -240,6 +295,13 @@ class FleetMower:
     @property
     def status(self) -> str:
         return status_text(self.status_id)
+
+
+def error_text(error_id: int | None) -> str | None:
+    """Return a stable, translatable state key for a mower error code."""
+    if error_id is None:
+        return None
+    return ERROR_CODE_STATES.get(error_id, "unknown_error")
 
 
 def status_text(status_id: int | None) -> str:

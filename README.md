@@ -21,6 +21,7 @@ web application's private REST/SSO/MQTT interfaces.
 - live MQTT telemetry over WebSockets
 - live GPS `device_tracker`
 - battery, status, signal, firmware, numeric zone and friendly **Zone name** sensors
+- raw numeric **Error code** plus localized **Error** description sensors
 - cloud, MQTT, RTK, rain and charging diagnostics
 - active Fleet map discovery
 - live-map camera with work-map geometry, coverage and No-Go areas
@@ -33,6 +34,20 @@ web application's private REST/SSO/MQTT interfaces.
 
 Friendly zone names are resolved from Fleet metadata and shown in the **Zone name** sensor and
 live-map header. Zone names are intentionally **not** drawn inside map polygons.
+
+
+### Mower error codes
+
+The integration keeps the raw numeric Fleet mower error in **Error code** for
+backward-compatible automations and exposes a second **Error** enum sensor with
+Home Assistant-localized text. Unknown future codes remain visible through the
+numeric sensor and are reported as `Unknown error` by the description sensor.
+
+Known community-documented protocol ranges are `0-20` and `100-120` (Vision /
+RTK included). For example, code `106` resolves to **Unreachable charging
+station** / **Ladestation nicht erreichbar**. The mapping is based on the
+community-maintained Worx/Kress protocol documentation:
+https://github.com/iobroker-community-adapters/ioBroker.worx/blob/master/docs/en/README.md
 
 ## Installation with HACS
 1. Open **HACS**.

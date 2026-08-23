@@ -18,3 +18,15 @@ The exact upstream commit used during the earliest local prototyping was not
 recorded. This does not change the GPL-3.0 licensing/attribution of the reused
 material; this file documents the known project-level provenance without
 claiming a more precise commit history than is available.
+
+
+## Error-code protocol reference
+
+The mower error-code labels used by `kress_fleet` are cross-checked against the
+community-maintained `ioBroker.worx` Worx/Kress protocol documentation:
+
+- https://github.com/iobroker-community-adapters/ioBroker.worx
+
+That project is GPL-3.0 licensed. The mapping is treated here as protocol
+metadata and is exposed through language-neutral state keys plus Home Assistant
+translations.

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.11 - 2026-08-23
+
+### Added
+
+- Add a localized **Error** enum sensor while keeping the existing numeric **Error code** sensor unchanged for automations and diagnostics.
+- Decode the community-documented mower error ranges `0-20` and `100-120`, including RTK error `106` as **Unreachable charging station** / **Ladestation nicht erreichbar**.
+- Translate all known error states in English and German, with an `Unknown error` fallback for future/unsupported codes.
+
+### Compatibility
+
+- Existing numeric error-code entity IDs and values remain unchanged.
+- No change to mower control, Fleet authentication, MQTT commands, Live Map rendering, zone resolution or coverage behavior.
+
 ## 0.3.10 - 2026-08-23
 
 ### Changed

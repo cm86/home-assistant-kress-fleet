@@ -30,7 +30,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .entity import KressFleetEntity
-from .models import FleetMower
+from .models import ERROR_STATE_OPTIONS, FleetMower, error_text
 from .map_renderer import current_zone_name
 
 
@@ -89,6 +89,15 @@ SENSORS: tuple[FleetSensorDescription, ...] = (
         value_fn=lambda mower: mower.error_id,
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:alert-circle-outline",
+    ),
+    FleetSensorDescription(
+        key="error_description",
+        translation_key="error_description",
+        value_fn=lambda mower: error_text(mower.error_id),
+        device_class=SensorDeviceClass.ENUM,
+        options=list(ERROR_STATE_OPTIONS),
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:alert-circle",
     ),
     FleetSensorDescription(
         key="rssi",

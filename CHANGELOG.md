@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.6 - 2026-08-23
+
+- Extend temporary active-zone diagnostics after Fleet RTK telemetry was observed without `dat.cut.z` and without `dat.lz`.
+- Expose the shape/value of `dat.cut.tsk`, safe structural summaries for likely telemetry blocks, and recursively discovered zone/task-like key paths.
+- Redact arbitrary string values and continue to avoid raw MQTT payloads, UUIDs, MAC addresses, coordinates, credentials and tokens.
+- No change to mower commands, zone resolution, map rendering or coverage behavior.
+
 ## 0.3.5 - 2026-08-23
 
 - Add temporary privacy-safe Live Map telemetry diagnostics for active-zone investigation.

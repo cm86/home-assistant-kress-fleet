@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
+from copy import copy
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,7 +25,7 @@ from homeassistant.const import (
     UnitOfElectricPotential,
     UnitOfTemperature,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -181,11 +183,92 @@ class KressFleetSensor(KressFleetEntity, SensorEntity):
 
     entity_description: FleetSensorDescription
 
-    def __init__(self, coordinator, mower_uuid: str, description: FleetSensorDescription) -> None:
+    def __init__(
+        self, coordinator, mower_uuid: str, description: FleetSensorDescription
+    ) -> None:
         self.entity_description = description
+        self._cached_zone_name: str | None = None
+        self._zone_name_key: tuple[object, ...] | None = None
+        self._zone_name_task: asyncio.Task[None] | None = None
         super().__init__(coordinator, mower_uuid, description.key)
+
+    async def async_added_to_hass(self) -> None:
+        """Register coordinator updates and prime the friendly zone-name cache."""
+        await super().async_added_to_hass()
+        if self.entity_description.key == "zone_name":
+            self._schedule_zone_name_refresh()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel a pending zone-name refresh when the entity is removed."""
+        if self._zone_name_task is not None:
+            self._zone_name_task.cancel()
+        await super().async_will_remove_from_hass()
+
+    def _zone_name_source_key(self) -> tuple[object, ...]:
+        """Return a cheap key for inputs used by friendly-zone resolution."""
+        mower = self.mower
+        cfg_fallback_key = (
+            id(mower.cfg)
+            if mower.map_detail is None and mower.product_detail is None
+            else None
+        )
+        return (
+            mower.zone,
+            mower.map_id,
+            mower.map_revision,
+            id(mower.map_detail),
+            id(mower.product_detail),
+            cfg_fallback_key,
+        )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Keep expensive zone-name parsing off Home Assistant's event loop."""
+        if self.entity_description.key == "zone_name":
+            self._schedule_zone_name_refresh()
+        super()._handle_coordinator_update()
+
+    @callback
+    def _schedule_zone_name_refresh(self) -> None:
+        """Refresh the friendly zone name in an executor when inputs change."""
+        if self.hass is None:
+            return
+        if self._zone_name_source_key() == self._zone_name_key:
+            return
+        if self._zone_name_task is not None and not self._zone_name_task.done():
+            return
+
+        self._zone_name_task = self.hass.async_create_task(
+            self._async_refresh_zone_name(),
+            name=f"Refresh Kress Fleet zone name {self.mower_uuid[:8]}",
+        )
+
+    async def _async_refresh_zone_name(self) -> None:
+        """Resolve the friendly zone name without blocking the event loop."""
+        try:
+            while self.hass is not None:
+                source_key = self._zone_name_source_key()
+                if source_key == self._zone_name_key:
+                    return
+
+                mower_snapshot = copy(self.mower)
+                zone_name = await self.hass.async_add_executor_job(
+                    current_zone_name, mower_snapshot
+                )
+
+                if source_key != self._zone_name_source_key():
+                    continue
+
+                self._cached_zone_name = zone_name
+                self._zone_name_key = source_key
+                self.async_write_ha_state()
+                return
+        finally:
+            self._zone_name_task = None
 
     @property
     def native_value(self):
-        """Return the native sensor value."""
+        """Return the native sensor value without blocking map parsing."""
+        if self.entity_description.key == "zone_name":
+            return self._cached_zone_name
         return self.entity_description.value_fn(self.mower)

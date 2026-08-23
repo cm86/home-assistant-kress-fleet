@@ -211,6 +211,7 @@ def render_mower_map(
     reference = _reference_point(mower)
     raw_map_shapes = extract_map_shapes(mower.map_detail, reference=reference)
     map_shapes = _promote_main_boundary(raw_map_shapes)
+    current_zone_label = _current_zone_name_from_shapes(mower, raw_map_shapes)
 
     points = [
         point
@@ -276,6 +277,10 @@ def render_mower_map(
         sy = offset_y + (max_y - y) * scale
         return sx, sy
 
+    header_line = _header_line(
+        mower, translations, zone_label=current_zone_label
+    )
+
     parts = [
         (
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" '
@@ -289,7 +294,7 @@ def render_mower_map(
         ),
         (
             '<text x="30" y="65" font-family="sans-serif" font-size="16" '
-            f'fill="#dce7df">{escape(_header_line(mower, translations))}</text>'
+            f'fill="#dce7df">{escape(header_line)}</text>'
         ),
         (
             '<text x="30" y="87" font-family="sans-serif" font-size="13" '
@@ -850,6 +855,108 @@ def mower_zone_id_name_map(mower: FleetMower) -> dict[int, str]:
     return result
 
 
+def _zone_metadata_from_shapes(
+    mower: FleetMower,
+    shapes: list[MapShape],
+) -> tuple[list[str], list[str], dict[int, str]]:
+    """Build friendly zone metadata while reusing parsed map shapes."""
+    names: list[str] = []
+    seen_names: set[str] = set()
+    zone_id_map: dict[int, str] = {}
+
+    for shape in shapes:
+        if (
+            shape.kind != "zone"
+            or not shape.label
+            or not _is_meaningful_zone_label(shape.label)
+        ):
+            continue
+        folded = shape.label.casefold()
+        if folded not in seen_names:
+            seen_names.add(folded)
+            names.append(shape.label)
+        if shape.zone_id is not None:
+            zone_id_map.setdefault(shape.zone_id, shape.label)
+
+    catalog = mower_zone_catalog(mower)
+    for zone_id, label, _source in catalog:
+        if not _is_meaningful_zone_label(label):
+            continue
+        folded = label.casefold()
+        if folded not in seen_names:
+            seen_names.add(folded)
+            names.append(label)
+        if zone_id is not None:
+            zone_id_map.setdefault(zone_id, label)
+
+    sources = sorted({origin for _zone_id, _label, origin in catalog})
+    return names, sources, zone_id_map
+
+
+def _current_zone_name_from_shapes(
+    mower: FleetMower,
+    shapes: list[MapShape],
+) -> str | None:
+    """Resolve the current zone without reparsing map geometry during rendering."""
+    zone_id = mower.zone
+    if zone_id is None:
+        return None
+
+    for shape in shapes:
+        if (
+            shape.kind == "zone"
+            and shape.zone_id == zone_id
+            and shape.label
+            and _is_meaningful_zone_label(shape.label)
+        ):
+            return shape.label
+
+    # Geometry can be metadata-poor on some Fleet revisions. Fall back to the
+    # broader catalog only when the already parsed shapes did not contain it.
+    for candidate_id, label, _source in mower_zone_catalog(mower):
+        if candidate_id == zone_id and _is_meaningful_zone_label(label):
+            return label
+    return None
+
+
+def mower_map_diagnostics(mower: FleetMower) -> dict[str, Any]:
+    """Return small live-map diagnostics for executor-side computation."""
+    raw_shapes = extract_map_shapes(mower.map_detail, reference=mower.coordinates)
+    shapes = _promote_main_boundary(raw_shapes)
+
+    counts = {"boundary": 0, "no_go": 0, "zone": 0, "path": 0, "unknown": 0}
+    no_go_states = {"active": 0, "inactive": 0, "unknown": 0}
+
+    for shape in shapes:
+        counts[shape.kind] = counts.get(shape.kind, 0) + 1
+        if shape.kind != "no_go":
+            continue
+        if shape.enabled is True:
+            no_go_states["active"] += 1
+        elif shape.enabled is False:
+            no_go_states["inactive"] += 1
+        else:
+            no_go_states["unknown"] += 1
+
+    zone_names, zone_sources, zone_id_map = _zone_metadata_from_shapes(
+        mower, raw_shapes
+    )
+
+    return {
+        "map_shapes": sum(counts.values()),
+        "map_boundaries": counts.get("boundary", 0),
+        "no_go_zones": counts.get("no_go", 0),
+        "no_go_active": no_go_states["active"],
+        "no_go_inactive": no_go_states["inactive"],
+        "no_go_unknown": no_go_states["unknown"],
+        "no_go_state_keys": map_no_go_state_keys(mower.map_detail),
+        "map_zones": counts.get("zone", 0),
+        "zone_names": zone_names,
+        "zone_name_sources": zone_sources,
+        "zone_id_map": {str(key): value for key, value in zone_id_map.items()},
+    }
+
+
 def map_zone_names(
     map_detail: dict[str, Any] | None,
     *,
@@ -1324,7 +1431,10 @@ def _period_label(
 
 
 def _header_line(
-    mower: FleetMower, translations: Mapping[str, str] | None = None
+    mower: FleetMower,
+    translations: Mapping[str, str] | None = None,
+    *,
+    zone_label: str | None = None,
 ) -> str:
     chunks = []
     if mower.battery_percent is not None:
@@ -1338,7 +1448,6 @@ def _header_line(
     )
     chunks.append(f"{_tr(translations, 'status_label', 'Status')} {status}")
     if mower.zone is not None:
-        zone_label = current_zone_name(mower)
         zone = _tr(translations, "zone", "Zone")
         chunks.append(
             f"{zone} {mower.zone}: {zone_label}" if zone_label else f"{zone} {mower.zone}"

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3 - 2026-08-23
+
+- Move live-map SVG rendering to Home Assistant's executor so opening the Live Map no longer performs CPU-heavy map/coverage traversal on the main event loop.
+- Move live-map camera diagnostics out of `extra_state_attributes`; state writes now expose only cached small diagnostics instead of reparsing Fleet map geometry.
+- Resolve the friendly `Zone name` sensor in the executor as well, avoiding map parsing during coordinator state writes.
+- Serialize concurrent camera image requests so multiple frontend requests cannot trigger duplicate SVG renders for the same cache miss.
+- Reuse already parsed map shapes for the live-map header's current zone label instead of reparsing the map during SVG rendering.
+
 ## 0.3.2 - 2026-08-22
 
 - Localize user-visible entity names through Home Assistant translation keys instead of hard-coded English/German names.

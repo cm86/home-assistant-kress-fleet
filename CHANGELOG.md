@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.9 - 2026-08-23
+
+- Fix the Home Assistant translation schema rejected by Hassfest.
+- Flatten Live Map captions under `common` so every common translation value is a string.
+- Preserve the renderer's existing internal keys through an explicit translation-key mapping.
+- No change to mower commands, Live Map rendering, active-zone resolution or coverage behavior.
+
 ## 0.3.8 - 2026-08-23
 
 - Resolve the active zone for RTK Fleet task telemetry from `dat.cut.tsk[*].z[*]` when `dat.cut.z` is absent.

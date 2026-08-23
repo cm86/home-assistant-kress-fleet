@@ -24,6 +24,39 @@ from .entity import mower_device_info
 from .map_renderer import mower_map_diagnostics, render_mower_map, timestamp_local
 
 
+_MAP_TRANSLATION_KEYS: dict[str, str] = {
+    "map_coverage": "coverage",
+    "map_no_coverage": "no_coverage",
+    "map_no_map_data": "no_map_data",
+    "map_not_mowed": "not_mowed",
+    "map_mowed": "mowed",
+    "map_no_go_active": "no_go_active",
+    "map_no_go_inactive": "no_go_inactive",
+    "map_battery": "battery",
+    "map_status_label": "status_label",
+    "map_zone": "zone",
+    "map_signal": "signal",
+    "map_from": "from",
+    "map_to": "to",
+    "map_position": "position",
+    "map_live_map": "live_map",
+    "map_period_today": "period.today",
+    "map_period_last_days": "period.last_days",
+    "map_status_idle": "status.idle",
+    "map_status_docked": "status.docked",
+    "map_status_starting": "status.starting",
+    "map_status_returning": "status.returning",
+    "map_status_mowing": "status.mowing",
+    "map_status_error": "status.error",
+    "map_status_escaped_digital_fence": "status.escaped_digital_fence",
+    "map_status_zoning": "status.zoning",
+    "map_status_edge_cut": "status.edge_cut",
+    "map_status_paused": "status.paused",
+    "map_status_searching_for_zone": "status.searching_for_zone",
+    "map_status_unknown": "status.unknown",
+}
+
+
 _EMPTY_MAP_DIAGNOSTICS: dict[str, Any] = {
     "map_shapes": 0,
     "map_boundaries": 0,
@@ -300,11 +333,11 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
         resources = await async_get_translations(
             self.hass, language, "common", {DOMAIN}
         )
-        prefix = f"component.{DOMAIN}.common.map."
-        self._map_translations = {
-            key.removeprefix(prefix): value
-            for key, value in resources.items()
-            if key.startswith(prefix)
-        }
+        prefix = f"component.{DOMAIN}.common."
+        self._map_translations = {}
+        for ha_key, renderer_key in _MAP_TRANSLATION_KEYS.items():
+            value = resources.get(f"{prefix}{ha_key}")
+            if value is not None:
+                self._map_translations[renderer_key] = value
         self._map_translation_language = language
         return self._map_translations

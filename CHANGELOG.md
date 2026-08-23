@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.8 - 2026-08-23
+
+- Resolve the active zone for RTK Fleet task telemetry from `dat.cut.tsk[*].z[*]` when `dat.cut.z` is absent.
+- Treat a task-zone as active only when it is the single zone with non-zero live route counters (`rtg` / `rtn`), avoiding guesses on ambiguous payloads.
+- Keep direct `dat.cut.z` telemetry as the highest-priority source and retain the last unambiguous zone only within the same active mowing/zoning session and map.
+- Remove the temporary v0.3.5-v0.3.7 zone telemetry diagnostics from Live Map attributes.
+
 ## 0.3.7 - 2026-08-23
 
 - Extend temporary zone diagnostics with safe values from the active Fleet mowing task.

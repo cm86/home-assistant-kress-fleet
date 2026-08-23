@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 from copy import copy
-import re
 from functools import partial
 from typing import Any
 
@@ -186,128 +185,6 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             zone_id_map.get(str(mower.zone)) if mower.zone is not None else None
         )
 
-        # Temporary, privacy-safe zone telemetry diagnostics. Fleet protocol
-        # variants do not always expose the active zone in the same field.
-        # Keep this deliberately small: no UUIDs, coordinates, tokens or full
-        # MQTT payloads are exposed through the camera state.
-        cut = mower.dat.get("cut")
-        cut_keys = sorted(str(key) for key in cut) if isinstance(cut, dict) else []
-        cut_zone = cut.get("z") if isinstance(cut, dict) else None
-        cut_task = cut.get("tsk") if isinstance(cut, dict) else None
-        telemetry_lz = mower.dat.get("lz")
-
-        def diagnostic_scalar(value):
-            """Return only non-sensitive primitive values for diagnostics."""
-            if value is None or isinstance(value, (int, float, bool)):
-                return value
-            if isinstance(value, str):
-                stripped = value.strip()
-                if re.fullmatch(r"-?\d+(?:\.\d+)?", stripped):
-                    return stripped
-                return f"<str:{len(value)}>"
-            return f"<{type(value).__name__}>"
-
-        def diagnostic_shape(value):
-            """Describe a telemetry block without exposing its raw contents."""
-            if isinstance(value, dict):
-                return {
-                    "type": "dict",
-                    "keys": sorted(str(key) for key in value),
-                }
-            if isinstance(value, list):
-                item_keys: list[str] = []
-                for item in value[:3]:
-                    if isinstance(item, dict):
-                        item_keys.extend(str(key) for key in item)
-                return {
-                    "type": "list",
-                    "length": len(value),
-                    "item_keys": sorted(set(item_keys)),
-                }
-            return diagnostic_scalar(value)
-
-        zoneish_names = {
-            "z",
-            "zone",
-            "zoneid",
-            "zone_id",
-            "currentzone",
-            "current_zone",
-            "lz",
-            "task",
-            "taskid",
-            "task_id",
-            "tsk",
-            "area",
-            "areaid",
-            "area_id",
-        }
-
-        def find_zone_candidates(value, path="dat", depth=0):
-            """Find only zone/task-like fields while redacting arbitrary strings."""
-            if depth > 5:
-                return []
-            found = []
-            if isinstance(value, dict):
-                for key, child in value.items():
-                    key_text = str(key)
-                    child_path = f"{path}.{key_text}"
-                    normalized = key_text.lower().replace("-", "_")
-                    if normalized in zoneish_names:
-                        found.append(
-                            {
-                                "path": child_path,
-                                "value": diagnostic_scalar(child),
-                                "shape": diagnostic_shape(child),
-                            }
-                        )
-                    found.extend(find_zone_candidates(child, child_path, depth + 1))
-            elif isinstance(value, list):
-                for index, child in enumerate(value[:10]):
-                    found.extend(
-                        find_zone_candidates(child, f"{path}[{index}]", depth + 1)
-                    )
-            return found[:40]
-
-        candidate_blocks = {}
-        for key in ("act", "rtk", "sc", "sh", "st", "tm", "tr"):
-            if key in mower.dat:
-                candidate_blocks[key] = diagnostic_shape(mower.dat.get(key))
-
-        task_details = None
-        if isinstance(cut_task, list) and cut_task:
-            task = cut_task[0]
-            if isinstance(task, dict):
-                task_details = {
-                    key: diagnostic_scalar(task.get(key))
-                    for key in ("id", "st", "tm", "tr")
-                    if key in task
-                }
-
-                zones = task.get("z")
-                if isinstance(zones, list):
-                    task_details["zones"] = []
-                    for index, zone in enumerate(zones[:20]):
-                        if not isinstance(zone, dict):
-                            task_details["zones"].append(
-                                {
-                                    "index": index,
-                                    "value": diagnostic_shape(zone),
-                                }
-                            )
-                            continue
-
-                        zone_details = {"index": index}
-                        for key in ("a", "id", "p", "rtg", "rtn"):
-                            if key in zone:
-                                value = zone.get(key)
-                                if isinstance(value, (dict, list)):
-                                    zone_details[key] = diagnostic_shape(value)
-                                else:
-                                    zone_details[key] = diagnostic_scalar(value)
-
-                        task_details["zones"].append(zone_details)
-
         return {
             "coverage_days": mower.coverage_days,
             "coverage_from": (
@@ -335,16 +212,6 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             "current_zone_id": mower.zone,
             "current_zone_name": current_zone_name,
             "current_zone_source": mower.zone_source,
-            "telemetry_status_id": mower.status_id,
-            "telemetry_status": mower.status,
-            "telemetry_cut_zone": diagnostic_scalar(cut_zone),
-            "telemetry_cut_task": diagnostic_shape(cut_task),
-            "telemetry_lz": diagnostic_scalar(telemetry_lz),
-            "telemetry_dat_keys": sorted(str(key) for key in mower.dat),
-            "telemetry_cut_keys": cut_keys,
-            "telemetry_candidate_blocks": candidate_blocks,
-            "telemetry_zone_candidates": find_zone_candidates(mower.dat),
-            "telemetry_cut_task_details": task_details,
         }
 
     def _render_key(

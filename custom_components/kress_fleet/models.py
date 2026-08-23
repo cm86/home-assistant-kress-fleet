@@ -97,7 +97,7 @@ class FleetMower:
                 self._last_reported_zone = None
                 self._last_reported_zone_map_id = None
 
-            reported_zone = _reported_zone(dat)
+            reported_zone, _reported_source = _reported_zone(dat)
             if reported_zone is not None:
                 self._last_reported_zone = reported_zone
                 self._last_reported_zone_map_id = self.map_id
@@ -160,11 +160,13 @@ class FleetMower:
     def zone(self) -> int | None:
         """Return the current Fleet zone without transient MQTT drop-outs.
 
-        Prefer the zone in the latest telemetry packet. If that packet omits
-        ``dat.cut.z`` during the same active mowing/zoning run, fall back to the
-        most recently reported zone from that run and map.
+        Prefer a zone that is unambiguously present in the latest telemetry.
+        Fleet protocol variants can expose it directly as ``dat.cut.z`` or, on
+        RTK task payloads, as the single task-zone with live route counters. If
+        a later packet temporarily omits both forms during the same active run,
+        retain the last unambiguous zone from that run and map.
         """
-        reported_zone = _reported_zone(self.dat)
+        reported_zone, _source = _reported_zone(self.dat)
         if reported_zone is not None:
             return reported_zone
         if (
@@ -176,9 +178,10 @@ class FleetMower:
 
     @property
     def zone_source(self) -> str | None:
-        """Return whether ``zone`` comes from current or retained telemetry."""
-        if _reported_zone(self.dat) is not None:
-            return "telemetry"
+        """Return the source used for the current zone."""
+        reported_zone, source = _reported_zone(self.dat)
+        if reported_zone is not None:
+            return source
         if (
             self._zone_context_active
             and self._last_reported_zone is not None
@@ -288,9 +291,49 @@ def iter_coverage_rings(nodes: list[dict[str, Any]]):
             yield from iter_coverage_rings(children)
 
 
-def _reported_zone(dat: dict[str, Any]) -> int | None:
-    """Return a zone explicitly present in protocol-1 Fleet telemetry."""
-    return _as_int(_nested(dat, "cut", "z"))
+def _reported_zone(dat: dict[str, Any]) -> tuple[int | None, str | None]:
+    """Return an unambiguous active zone and its Fleet telemetry source.
+
+    Known Fleet payload variants currently use either a direct ``dat.cut.z``
+    value or RTK task telemetry under ``dat.cut.tsk[*].z[*]``. In observed RTK
+    task payloads the zone currently being worked is the only task-zone with
+    non-zero live route counters (``rtg`` / ``rtn``).
+
+    The task fallback is intentionally conservative. If no task-zone or more
+    than one task-zone looks active, return no zone instead of guessing.
+    """
+    direct = _as_int(_nested(dat, "cut", "z"))
+    if direct is not None:
+        return direct, "telemetry"
+
+    cut = dat.get("cut")
+    if not isinstance(cut, dict):
+        return None, None
+    tasks = cut.get("tsk")
+    if not isinstance(tasks, list):
+        return None, None
+
+    active_zone_ids: set[int] = set()
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        zones = task.get("z")
+        if not isinstance(zones, list):
+            continue
+        for zone in zones:
+            if not isinstance(zone, dict):
+                continue
+            zone_id = _as_int(zone.get("id"))
+            if zone_id is None:
+                continue
+            rtg = _as_float(zone.get("rtg")) or 0.0
+            rtn = _as_float(zone.get("rtn")) or 0.0
+            if rtg > 0 or rtn > 0:
+                active_zone_ids.add(zone_id)
+
+    if len(active_zone_ids) == 1:
+        return next(iter(active_zone_ids)), "task"
+    return None, None
 
 
 def _nested(data: dict[str, Any], *keys: str) -> Any:

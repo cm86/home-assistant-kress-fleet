@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "kress_fleet"
 NAME: Final = "Kress Fleet"
-VERSION: Final = "0.3.7"
+VERSION: Final = "0.3.8"
 
 PLATFORMS: Final = [
     Platform.LAWN_MOWER,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.5 - 2026-08-23
+
+- Add temporary privacy-safe Live Map telemetry diagnostics for active-zone investigation.
+- Expose Fleet status ID/state, raw `dat.cut.z`, raw `dat.lz`, and only the key names present in `dat` / `dat.cut`.
+- Do not expose raw MQTT payloads, UUIDs, coordinates, credentials or tokens.
+- No change to mower commands, zone resolution, map rendering or coverage behavior.
+
 ## 0.3.4 - 2026-08-23
 
 - Keep the last explicitly reported Fleet zone while the mower remains in the same active mowing/zoning session, preventing transient MQTT packets without `dat.cut.z` from changing the Zone and Zone name sensors to `unknown`.

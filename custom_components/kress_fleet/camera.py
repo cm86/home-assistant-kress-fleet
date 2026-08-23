@@ -185,6 +185,20 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             zone_id_map.get(str(mower.zone)) if mower.zone is not None else None
         )
 
+        # Temporary, privacy-safe zone telemetry diagnostics. Fleet protocol
+        # variants do not always expose the active zone in the same field.
+        # Keep this deliberately small: no UUIDs, coordinates, tokens or full
+        # MQTT payloads are exposed through the camera state.
+        cut = mower.dat.get("cut")
+        cut_keys = sorted(str(key) for key in cut) if isinstance(cut, dict) else []
+        cut_zone = cut.get("z") if isinstance(cut, dict) else None
+        telemetry_lz = mower.dat.get("lz")
+
+        def diagnostic_scalar(value):
+            if value is None or isinstance(value, (str, int, float, bool)):
+                return value
+            return f"<{type(value).__name__}>"
+
         return {
             "coverage_days": mower.coverage_days,
             "coverage_from": (
@@ -212,6 +226,12 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             "current_zone_id": mower.zone,
             "current_zone_name": current_zone_name,
             "current_zone_source": mower.zone_source,
+            "telemetry_status_id": mower.status_id,
+            "telemetry_status": mower.status,
+            "telemetry_cut_zone": diagnostic_scalar(cut_zone),
+            "telemetry_lz": diagnostic_scalar(telemetry_lz),
+            "telemetry_dat_keys": sorted(str(key) for key in mower.dat),
+            "telemetry_cut_keys": cut_keys,
         }
 
     def _render_key(

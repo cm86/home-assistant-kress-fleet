@@ -12,6 +12,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 
+# Statuses where a mowing-zone context is meaningful. Fleet telemetry can
+# temporarily omit ``dat.cut.z`` while the mower remains in the same active
+# run. Keep the last explicitly reported zone only for the duration of such a
+# run; never carry it into a later mowing session or a different map.
+_ZONE_CONTEXT_STATUS_IDS = frozenset({2, 3, 7, 12, 31, 32, 33, 34, 103})
+
+
 @dataclass(slots=True)
 class FleetMower:
     """A Kress Fleet mower."""
@@ -42,19 +49,62 @@ class FleetMower:
     # parser use Fleet metadata that is not part of the MQTT payload/map JSON.
     product_detail: dict[str, Any] | None = None
 
+    # Kress protocol-1 telemetry normally reports the active zone in
+    # ``dat.cut.z``. Some commandOut snapshots omit that value temporarily even
+    # though the mower is still mowing. Remember the last explicitly reported
+    # zone only within the current active run so the HA zone entities do not
+    # flap to ``unknown`` between otherwise valid telemetry packets.
+    _last_reported_zone: int | None = field(default=None, init=False, repr=False)
+    _last_reported_zone_map_id: str | None = field(
+        default=None, init=False, repr=False
+    )
+    _zone_context_active: bool = field(default=False, init=False, repr=False)
+
     def update_payload(self, payload: dict[str, Any]) -> None:
-        """Update the mower from a commandOut payload."""
+        """Update the mower from a commandOut payload.
+
+        Fleet commandOut data is authoritative, but not every snapshot carries
+        ``dat.cut.z``. Track the last *explicitly* reported zone during one
+        active mowing/zoning session instead of turning the zone sensors into
+        ``unknown`` whenever that optional field is absent.
+        """
         cfg = payload.get("cfg")
         dat = payload.get("dat")
+
         if isinstance(cfg, dict):
             self.cfg = cfg
-        if isinstance(dat, dict):
-            self.dat = dat
-            self.online = True
 
+        # Resolve a map assignment before remembering a zone so the fallback is
+        # automatically scoped to the map on which it was observed.
         rtk_cfg = self.cfg.get("rtk")
         if isinstance(rtk_cfg, dict) and rtk_cfg.get("map"):
             self.map_id = str(rtk_cfg["map"])
+
+        if isinstance(dat, dict):
+            previous_status_id = self.status_id
+            incoming_status_id = _as_int(dat.get("ls"))
+            effective_status_id = (
+                incoming_status_id
+                if incoming_status_id is not None
+                else previous_status_id
+            )
+            zone_context_active = effective_status_id in _ZONE_CONTEXT_STATUS_IDS
+
+            # A transition into a new active run must not reuse the zone from a
+            # previous mowing session. The next explicit ``cut.z`` starts the
+            # fallback context for this run.
+            if zone_context_active and not self._zone_context_active:
+                self._last_reported_zone = None
+                self._last_reported_zone_map_id = None
+
+            reported_zone = _reported_zone(dat)
+            if reported_zone is not None:
+                self._last_reported_zone = reported_zone
+                self._last_reported_zone_map_id = self.map_id
+
+            self._zone_context_active = zone_context_active
+            self.dat = dat
+            self.online = True
 
     @property
     def coordinates(self) -> tuple[float, float] | None:
@@ -108,7 +158,34 @@ class FleetMower:
 
     @property
     def zone(self) -> int | None:
-        return _as_int(_nested(self.dat, "cut", "z"))
+        """Return the current Fleet zone without transient MQTT drop-outs.
+
+        Prefer the zone in the latest telemetry packet. If that packet omits
+        ``dat.cut.z`` during the same active mowing/zoning run, fall back to the
+        most recently reported zone from that run and map.
+        """
+        reported_zone = _reported_zone(self.dat)
+        if reported_zone is not None:
+            return reported_zone
+        if (
+            self._zone_context_active
+            and self._last_reported_zone_map_id == self.map_id
+        ):
+            return self._last_reported_zone
+        return None
+
+    @property
+    def zone_source(self) -> str | None:
+        """Return whether ``zone`` comes from current or retained telemetry."""
+        if _reported_zone(self.dat) is not None:
+            return "telemetry"
+        if (
+            self._zone_context_active
+            and self._last_reported_zone is not None
+            and self._last_reported_zone_map_id == self.map_id
+        ):
+            return "last_reported"
+        return None
 
     @property
     def firmware(self) -> str | None:
@@ -209,6 +286,11 @@ def iter_coverage_rings(nodes: list[dict[str, Any]]):
         children = node.get("children")
         if isinstance(children, list):
             yield from iter_coverage_rings(children)
+
+
+def _reported_zone(dat: dict[str, Any]) -> int | None:
+    """Return a zone explicitly present in protocol-1 Fleet telemetry."""
+    return _as_int(_nested(dat, "cut", "z"))
 
 
 def _nested(data: dict[str, Any], *keys: str) -> Any:

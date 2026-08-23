@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.4 - 2026-08-23
+
+- Keep the last explicitly reported Fleet zone while the mower remains in the same active mowing/zoning session, preventing transient MQTT packets without `dat.cut.z` from changing the Zone and Zone name sensors to `unknown`.
+- Scope the retained zone to the current mower, active run and map; no mower UUID, zone ID or zone name is hard-coded, and stale zones are not carried into a later mowing session.
+- Expose `current_zone_source` on the Live Map camera diagnostics (`telemetry` or `last_reported`) to make zone-source troubleshooting explicit.
+
+
 ## 0.3.3 - 2026-08-23
 
 - Move live-map SVG rendering to Home Assistant's executor so opening the Live Map no longer performs CPU-heavy map/coverage traversal on the main event loop.

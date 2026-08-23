@@ -211,6 +211,7 @@ class KressFleetMapCamera(CoordinatorEntity[KressFleetCoordinator], Camera):
             "zone_id_map": zone_id_map,
             "current_zone_id": mower.zone,
             "current_zone_name": current_zone_name,
+            "current_zone_source": mower.zone_source,
         }
 
     def _render_key(

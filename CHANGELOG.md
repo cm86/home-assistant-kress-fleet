@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.15 - 2026-08-31
+
+### Fixed
+
+- Derive the mower model code (for example `KR271E`) from the Fleet MQTT topic on the fast discovery path when product details do not provide it yet.
+- Expose the resolved model as a `model` attribute on the native lawn-mower entity so frontend cards can reliably use model-specific assets.
+- Allow Kress Fleet Card v0.3.8+ to load the matching transparent image from `static-models.kress-robotik.com` without requiring a manually configured local image.
+
+### Compatibility
+
+- No change to mower commands, MQTT subscriptions, zone control, Live Map, authentication or entity IDs.
+- Product-detail model metadata still takes precedence when Fleet provides it.
+
 ## 0.3.14 - 2026-08-23
 
 ### Added

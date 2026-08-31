@@ -600,6 +600,7 @@ class KressFleetApi:
                     user_id=user_id,
                     location_id=location_id,
                     name="Kress Fleet",
+                    model=_extract_model_from_mqtt_topics(topics),
                     map_id=map_id,
                     map_name=map_name,
                     command_in=_string_or_none(topics.get("command_in")),
@@ -923,6 +924,24 @@ def _find_first(value: Any, keys: tuple[str, ...]) -> Any:
             result = _find_first(child, keys)
             if result not in (None, ""):
                 return result
+    return None
+
+
+def _extract_model_from_mqtt_topics(topics: dict[str, Any]) -> str | None:
+    """Extract a Kress model code from Fleet MQTT topic paths.
+
+    Fleet topic paths include the model as the segment after ``MW``, e.g.
+    ``KR/MW/KR271E/<uuid>/v1/commandOut``.  This path is available on the
+    fast discovery path even when the slower product-detail endpoint has not
+    returned yet.
+    """
+    for key in ("command_in", "command_out"):
+        topic = _string_or_none(topics.get(key))
+        if not topic:
+            continue
+        match = re.search(r"(?:^|/)MW/(KR[A-Z0-9]{3,12})(?:/|$)", topic, re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
     return None
 
 

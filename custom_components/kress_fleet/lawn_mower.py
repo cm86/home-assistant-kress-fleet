@@ -70,6 +70,8 @@ class KressFleetLawnMower(KressFleetEntity, LawnMowerEntity):
             attrs["latitude"], attrs["longitude"] = self.mower.coordinates
         if self.mower.battery_percent is not None:
             attrs["battery"] = self.mower.battery_percent
+        if self.mower.model:
+            attrs["model"] = self.mower.model
         if self.mower.zone is not None:
             attrs["zone"] = self.mower.zone
 

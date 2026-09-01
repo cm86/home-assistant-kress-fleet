@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.16 - 2026-09-01
+
+### Fixed
+
+- Resolve the current RTK mowing zone from the mower's precise live `dat.rtk.pos` position when protocol-1 telemetry does not expose a usable `dat.cut.z` / task-zone value.
+- Match that position against Fleet's structured `layers.boundaries[].zones[].contours[]` polygons and honor contour child holes instead of guessing a zone number.
+- Prefer RTK coordinates over the cellular GPS fallback for the mower tracker, Live Map marker and position-based zone resolution.
+- Keep direct MQTT/task zone telemetry as the highest-priority source and only use map geometry during an active mowing/zoning context.
+
+### Compatibility
+
+- No entity IDs or mower commands change.
+- The existing **Zone** and **Zone name** sensors, lawn-mower `zone` attribute and Live Map `current_zone_*` diagnostics automatically benefit from the fallback because they all use the shared mower zone resolver.
+
 ## 0.3.15 - 2026-08-31
 
 ### Fixed

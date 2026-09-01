@@ -175,27 +175,18 @@ class FleetMower:
 
     @property
     def coordinates(self) -> tuple[float, float] | None:
-        """Return current coordinates as latitude, longitude."""
-        modules = self.dat.get("modules")
-        if not isinstance(modules, dict):
-            return None
-        modem = modules.get("4G")
-        if not isinstance(modem, dict):
-            return None
-        gps = modem.get("gps")
-        if not isinstance(gps, dict):
-            return None
-        coo = gps.get("coo")
-        if not isinstance(coo, (list, tuple)) or len(coo) < 2:
-            return None
-        try:
-            lat = float(coo[0])
-            lon = float(coo[1])
-        except (TypeError, ValueError):
-            return None
-        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-            return None
-        return lat, lon
+        """Return the best current coordinates as latitude, longitude.
+
+        RTK-capable Kress mowers expose their precise live position as
+        ``dat.rtk.pos``. Prefer that over the cellular-module GPS fallback so
+        live-map placement and position-based zone resolution use Fleet's precise
+        RTK source whenever it is available.
+        """
+        rtk_position = _coordinate_pair(_nested(self.dat, "rtk", "pos"))
+        if rtk_position is not None:
+            return rtk_position
+
+        return _coordinate_pair(_nested(self.dat, "modules", "4G", "gps", "coo"))
 
     @property
     def battery_percent(self) -> int | None:
@@ -239,8 +230,17 @@ class FleetMower:
         if (
             self._zone_context_active
             and self._last_reported_zone_map_id == self.map_id
+            and self._last_reported_zone is not None
         ):
             return self._last_reported_zone
+
+        # Vision/RTK protocol-1 telemetry commonly leaves the legacy/current
+        # zone field empty. When the mower is in an active mowing context,
+        # resolve its precise RTK position against Fleet's structured map zone
+        # contours. This is geometry-based, not an ID guess: if the position is
+        # outside all configured zone polygons, keep the zone unknown.
+        if self._zone_context_active:
+            return _rtk_map_zone_at_position(self.map_detail, self.coordinates)
         return None
 
     @property
@@ -255,6 +255,11 @@ class FleetMower:
             and self._last_reported_zone_map_id == self.map_id
         ):
             return "last_reported"
+        if (
+            self._zone_context_active
+            and _rtk_map_zone_at_position(self.map_detail, self.coordinates) is not None
+        ):
+            return "rtk_map"
         return None
 
     @property
@@ -363,6 +368,120 @@ def iter_coverage_rings(nodes: list[dict[str, Any]]):
         children = node.get("children")
         if isinstance(children, list):
             yield from iter_coverage_rings(children)
+
+
+def _coordinate_pair(value: Any) -> tuple[float, float] | None:
+    """Normalize a coordinate pair to ``(latitude, longitude)``."""
+    if isinstance(value, dict):
+        latitude = value.get("latitude", value.get("lat"))
+        longitude = value.get("longitude", value.get("lon", value.get("lng")))
+    elif isinstance(value, (list, tuple)) and len(value) >= 2:
+        latitude, longitude = value[0], value[1]
+    else:
+        return None
+
+    try:
+        lat = float(latitude)
+        lon = float(longitude)
+    except (TypeError, ValueError):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return lat, lon
+
+
+def _map_layers(map_detail: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Return the structured Fleet map layers when present."""
+    if not isinstance(map_detail, dict):
+        return None
+    layers = map_detail.get("layers")
+    return layers if isinstance(layers, dict) else None
+
+
+def _contour_points(contour: Any) -> list[tuple[float, float]]:
+    """Return normalized points from one Fleet RTK zone contour."""
+    if not isinstance(contour, dict):
+        return []
+    points = contour.get("points")
+    if not isinstance(points, list):
+        return []
+    return [pair for point in points if (pair := _coordinate_pair(point)) is not None]
+
+
+def _point_in_ring(
+    point: tuple[float, float], ring: list[tuple[float, float]]
+) -> bool:
+    """Return whether a latitude/longitude point is inside one polygon ring."""
+    if len(ring) < 3:
+        return False
+
+    x, y = point[1], point[0]
+    inside = False
+    x1, y1 = ring[-1][1], ring[-1][0]
+    for latitude, longitude in ring:
+        x2, y2 = longitude, latitude
+        if (y1 > y) != (y2 > y):
+            x_intersection = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+            if x < x_intersection:
+                inside = not inside
+        x1, y1 = x2, y2
+    return inside
+
+
+def _point_in_contour(point: tuple[float, float], contour: Any) -> bool:
+    """Return whether a point is in a zone contour and outside exclusion holes."""
+    if not _point_in_ring(point, _contour_points(contour)):
+        return False
+
+    if not isinstance(contour, dict):
+        return False
+    children = contour.get("children")
+    if not isinstance(children, list):
+        return True
+    for child in children:
+        if _point_in_ring(point, _contour_points(child)):
+            return False
+    return True
+
+
+def _rtk_map_zone_at_position(
+    map_detail: dict[str, Any] | None,
+    position: tuple[float, float] | None,
+) -> int | None:
+    """Return the Fleet RTK zone ID containing ``position``.
+
+    Current Fleet map responses expose mowing regions under
+    ``layers.boundaries[].zones[].contours[]``. The resolver is deliberately
+    strict: only an explicit zone ID whose polygon contains the live mower
+    position is returned.
+    """
+    if position is None:
+        return None
+    layers = _map_layers(map_detail)
+    if layers is None:
+        return None
+    boundaries = layers.get("boundaries")
+    if not isinstance(boundaries, list):
+        return None
+
+    for boundary in boundaries:
+        if not isinstance(boundary, dict):
+            continue
+        zones = boundary.get("zones")
+        if not isinstance(zones, list):
+            continue
+        for zone in zones:
+            if not isinstance(zone, dict):
+                continue
+            zone_id = _as_int(zone.get("id"))
+            if zone_id is None:
+                continue
+            contours = zone.get("contours")
+            if not isinstance(contours, list):
+                continue
+            if any(_point_in_contour(position, contour) for contour in contours):
+                return zone_id
+    return None
 
 
 def _reported_zone(dat: dict[str, Any]) -> tuple[int | None, str | None]:

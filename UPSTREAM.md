@@ -30,3 +30,11 @@ community-maintained `ioBroker.worx` Worx/Kress protocol documentation:
 That project is GPL-3.0 licensed. The mapping is treated here as protocol
 metadata and is exposed through language-neutral state keys plus Home Assistant
 translations.
+
+## RTK position-based current-zone fallback
+
+Kress Fleet protocol-1 mowers can omit the legacy current-zone field while still exposing a
+precise RTK position and structured zone polygons in the Fleet map response. Version 0.3.16
+independently implements a conservative point-in-polygon fallback for that data shape. The same
+general interoperability approach is also used by the community `ADNPolymerase/ha-landroid-vision`
+integration for Vision/RTK mowers.

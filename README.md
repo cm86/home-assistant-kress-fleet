@@ -34,7 +34,10 @@ web application's private REST/SSO/MQTT interfaces.
 - background/lazy loading so multi-megabyte map coverage does not block Home Assistant startup
 
 Friendly zone names are resolved from Fleet metadata and shown in the **Zone name** sensor and
-live-map header. Zone names are intentionally **not** drawn inside map polygons.
+live-map header. When protocol-1 RTK telemetry omits the current zone, the integration falls back
+to the mower's precise `dat.rtk.pos` position and resolves it against Fleet's structured zone
+contours; direct MQTT/task zone telemetry always remains authoritative. Zone names are intentionally
+**not** drawn inside map polygons.
 
 
 ### Mower error codes

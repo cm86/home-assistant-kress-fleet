@@ -9,6 +9,12 @@
 
 # Changelog
 
+## 0.4.0-beta.4 - 2026-09-08
+
+- Fixed normal Kress / Mission RTK Live Map packaging.
+- Added the missing normal Live Map camera and SVG renderer modules.
+- Fleet Live Map behavior remains unchanged.
+
 ## 0.4.0-beta.3 - 2026-09-08
 
 - Added first normal Kress / Mission RTK Live Map camera support.

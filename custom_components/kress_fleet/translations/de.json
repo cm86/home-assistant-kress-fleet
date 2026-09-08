@@ -73,7 +73,7 @@
           "zoning": "Wechselt Zone",
           "edge_cut": "Kantenschnitt",
           "paused": "Pausiert",
-          "searching_for_zone": "Zone suchen",
+          "searching_for_zone": "Suche nach Zone",
           "unknown": "Unbekannt"
         }
       },
@@ -210,7 +210,7 @@
     "map_status_zoning": "Wechselt Zone",
     "map_status_edge_cut": "Kantenschnitt",
     "map_status_paused": "Pausiert",
-    "map_status_searching_for_zone": "Zone suchen",
+    "map_status_searching_for_zone": "Suche nach Zone",
     "map_status_unknown": "Unbekannt"
   }
 }

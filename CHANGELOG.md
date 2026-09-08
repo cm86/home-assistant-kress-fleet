@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.19 - 2026-09-08
+
+### Fixed
+
+- Change only the German presentation text for the already distinct Fleet status `searching_for_zone` from **Zone suchen** to **Suche nach Zone**.
+- Keep Fleet status ID `3` mapped to **Startet** and status ID `33` mapped to **Suche nach Zone**.
+
+### Compatibility
+
+- No other Fleet status IDs or mappings are changed.
+- No mower commands, MQTT handling, zone resolution, entities, Live Map geometry or configuration changes.
+
 ## 0.3.18 - 2026-09-08
 
 ### Fixed

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.20 - 2026-09-08
+
+### Fixed
+
+- Complete the Home Assistant 2026.3+ local brand asset set in `custom_components/kress_fleet/brand/`.
+- Add explicit `logo.png` / `logo@2x.png` files in addition to the existing integration icons.
+- Add explicit dark-theme icon and logo variants so the frontend does not need to rely on a theme fallback.
+- Point the README header at the bundled `logo@2x.png` asset.
+
+### Compatibility
+
+- No mower logic, MQTT, status mappings, entities, commands, zone handling, Live Map behavior or configuration changes.
+- The existing project artwork is reused unchanged; this release only completes the supported Home Assistant brand filenames and bumps the integration version.
+
 ## 0.3.19 - 2026-09-08
 
 ### Fixed

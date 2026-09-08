@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.18 - 2026-09-08
+
+### Fixed
+
+- Ship the project artwork in Home Assistant's supported local custom-integration brand directory: `custom_components/kress_fleet/brand/`.
+- Add a 256x256 `icon.png` and 512x512 `icon@2x.png`, so Home Assistant can expose the integration branding through its local Brands Proxy API.
+- Use an absolute GitHub raw URL for the README header image so HACS' README renderer does not strip the relative image path to an empty `src`.
+- Remove the now-redundant repository-root `images/` copy of the logo.
+
+### Compatibility
+
+- No mower logic, entities, commands, MQTT, zone handling, Live Map behavior or configuration changes.
+- Home Assistant 2026.3+ can use the bundled local brand asset immediately after the integration update/restart.
+
 ## 0.3.17 - 2026-09-08
 
 ### Fixed

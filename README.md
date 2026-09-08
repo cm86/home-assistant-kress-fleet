@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/kress-fleet-logo.png" alt="Kress Fleet for Home Assistant project logo" width="220">
+  <img src="https://raw.githubusercontent.com/cm86/home-assistant-kress-fleet/main/custom_components/kress_fleet/brand/icon@2x.png" alt="Kress Fleet for Home Assistant project logo" width="220">
 </p>
 
 # Kress Fleet for Home Assistant

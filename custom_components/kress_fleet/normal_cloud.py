@@ -48,3 +48,4 @@ class KressNormalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         self.cloud.set_callback(LandroidEvent.DATA_RECEIVED, _handle_event)
         self.cloud.set_callback(LandroidEvent.API, _handle_event)
+        self.cloud.set_callback(LandroidEvent.MQTT_CONNECTION, _handle_event)

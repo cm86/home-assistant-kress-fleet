@@ -1,13 +1,23 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
-"""Basic sensors for the normal Kress cloud backend."""
+"""Sensors for the normal Kress cloud backend."""
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+from homeassistant.helpers.entity import EntityCategory
 
 from .normal_entity import KressNormalEntity
+
+
+def _mapping_value(value: Any, key: str) -> Any:
+    """Return a value from a dict-like pyworxcloud attribute."""
+    if isinstance(value, dict):
+        return value.get(key)
+    return getattr(value, key, None)
 
 
 class KressNormalBatterySensor(KressNormalEntity, SensorEntity):
@@ -21,8 +31,7 @@ class KressNormalBatterySensor(KressNormalEntity, SensorEntity):
 
     @property
     def native_value(self):
-        battery = getattr(self.device, "battery", {})
-        return battery.get("percent") if isinstance(battery, dict) else None
+        return _mapping_value(getattr(self.device, "battery", None), "percent")
 
 
 class KressNormalStatusSensor(KressNormalEntity, SensorEntity):
@@ -49,3 +58,71 @@ class KressNormalStatusSensor(KressNormalEntity, SensorEntity):
             32: "edge_cut", 33: "starting", 34: "paused",
             103: "searching_for_zone", 104: "returning",
         }.get(status_id, "unknown")
+
+
+class KressNormalErrorSensor(KressNormalEntity, SensorEntity):
+    _attr_translation_key = "error"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:alert-circle-outline"
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "error")
+
+    @property
+    def native_value(self):
+        return _mapping_value(getattr(self.device, "error", None), "id")
+
+
+class KressNormalErrorDescriptionSensor(KressNormalEntity, SensorEntity):
+    _attr_translation_key = "error_description"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:alert-circle"
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "error_description")
+
+    @property
+    def native_value(self):
+        return _mapping_value(getattr(self.device, "error", None), "description")
+
+
+class KressNormalRssiSensor(KressNormalEntity, SensorEntity):
+    _attr_translation_key = "rssi"
+    _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
+    _attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "rssi")
+
+    @property
+    def native_value(self):
+        return getattr(self.device, "rssi", None)
+
+
+class KressNormalFirmwareSensor(KressNormalEntity, SensorEntity):
+    _attr_translation_key = "firmware"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:chip"
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "firmware")
+
+    @property
+    def native_value(self):
+        return _mapping_value(getattr(self.device, "firmware", None), "version")
+
+
+class KressNormalLastUpdateSensor(KressNormalEntity, SensorEntity):
+    _attr_translation_key = "last_update"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:clock-check"
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "last_update")
+
+    @property
+    def native_value(self):
+        return getattr(self.device, "updated", None)

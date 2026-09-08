@@ -9,6 +9,13 @@
 
 # Changelog
 
+## 0.4.0-beta.2 - 2026-09-08
+
+- Added normal Kress / Mission diagnostic entities.
+- Added cloud, MQTT, rain and charging binary sensors.
+- Fleet behavior remains unchanged.
+
+
 ## 0.3.20 - 2026-09-08
 
 ### Fixed

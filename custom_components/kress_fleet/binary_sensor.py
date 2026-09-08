@@ -19,7 +19,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .const import BACKEND_KRESS
 from .entity import KressFleetEntity
+from .normal_binary_sensor import (
+    KressNormalChargingBinarySensor,
+    KressNormalMqttBinarySensor,
+    KressNormalOnlineBinarySensor,
+    KressNormalRainBinarySensor,
+)
 from .models import FleetMower
 
 
@@ -77,6 +84,19 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fleet binary sensors."""
     coordinator = entry.runtime_data.coordinator
+    if getattr(entry.runtime_data, "backend", None) == BACKEND_KRESS:
+        entities = []
+        for serial in coordinator.data:
+            entities.extend(
+                (
+                    KressNormalOnlineBinarySensor(coordinator, serial),
+                    KressNormalMqttBinarySensor(coordinator, serial),
+                    KressNormalRainBinarySensor(coordinator, serial),
+                    KressNormalChargingBinarySensor(coordinator, serial),
+                )
+            )
+        async_add_entities(entities)
+        return
     async_add_entities(
         KressFleetBinarySensor(coordinator, mower_uuid, description)
         for mower_uuid in coordinator.data

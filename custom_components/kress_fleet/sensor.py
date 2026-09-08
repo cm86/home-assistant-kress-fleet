@@ -31,7 +31,15 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import BACKEND_KRESS
 from .entity import KressFleetEntity
-from .normal_sensor import KressNormalBatterySensor, KressNormalStatusSensor
+from .normal_sensor import (
+    KressNormalBatterySensor,
+    KressNormalErrorDescriptionSensor,
+    KressNormalErrorSensor,
+    KressNormalFirmwareSensor,
+    KressNormalLastUpdateSensor,
+    KressNormalRssiSensor,
+    KressNormalStatusSensor,
+)
 from .models import ERROR_STATE_OPTIONS, FleetMower, error_text
 from .map_renderer import current_zone_name
 
@@ -187,6 +195,11 @@ async def async_setup_entry(
         for serial in coordinator.data:
             entities.append(KressNormalBatterySensor(coordinator, serial))
             entities.append(KressNormalStatusSensor(coordinator, serial))
+            entities.append(KressNormalErrorSensor(coordinator, serial))
+            entities.append(KressNormalErrorDescriptionSensor(coordinator, serial))
+            entities.append(KressNormalRssiSensor(coordinator, serial))
+            entities.append(KressNormalFirmwareSensor(coordinator, serial))
+            entities.append(KressNormalLastUpdateSensor(coordinator, serial))
         async_add_entities(entities)
         return
     async_add_entities(

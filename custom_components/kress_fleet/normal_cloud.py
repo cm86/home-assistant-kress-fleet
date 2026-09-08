@@ -21,6 +21,7 @@ from .const import DOMAIN
 RTK_MAP_CACHE_TTL = timedelta(minutes=30)
 RTK_MOWING_TRAIL_MAX_POINTS = 5000
 MOWING_STATUS_IDS = frozenset({7, 12, 32})
+MOWING_STATUS_HINTS = ("mow", "cut", "maeh", "mäh")
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +44,25 @@ def _status_id(device: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _status_description(device: Any) -> str:
+    """Return the upstream mower status description for diagnostics/fallback."""
+    status = getattr(device, "status", None)
+    value = (
+        status.get("description")
+        if isinstance(status, dict)
+        else getattr(status, "description", None)
+    )
+    return str(value or "").strip()
+
+
+def _is_cutting_status(device: Any) -> bool:
+    """Return True when the mower is currently cutting grass."""
+    if _status_id(device) in MOWING_STATUS_IDS:
+        return True
+    description = _status_description(device).casefold()
+    return any(hint in description for hint in MOWING_STATUS_HINTS)
 
 
 def _rtk_position(device: Any) -> tuple[float, float] | None:
@@ -107,7 +127,7 @@ class KressNormalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Keep recent RTK positions while the mower is actually cutting."""
         now = datetime.now(UTC)
         for serial, device in devices.items():
-            if _status_id(device) not in MOWING_STATUS_IDS:
+            if not _is_cutting_status(device):
                 continue
             position = _rtk_position(device)
             if position is None:

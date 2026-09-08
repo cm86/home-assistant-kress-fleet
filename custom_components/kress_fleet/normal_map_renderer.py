@@ -10,9 +10,10 @@ from html import escape
 from math import cos, hypot, radians
 from typing import Any
 
-SVG_WIDTH = 900
-SVG_HEIGHT = 620
-SVG_PADDING = 48
+SVG_WIDTH = 1100
+SVG_HEIGHT = 760
+SVG_HEADER = 96
+SVG_PADDING = 34
 COVERAGE_WINDOW_HOURS = 6
 TRAIL_MAX_AGE = timedelta(hours=COVERAGE_WINDOW_HOURS)
 TRAIL_MAX_GAP = timedelta(minutes=5)
@@ -126,23 +127,30 @@ def _projector(points: list[tuple[float, float]]):
     lon_scale = max(cos(radians(mean_lat)), 0.1)
     width_m = max((max_lon - min_lon) * 111_320 * lon_scale, 1.0)
     height_m = max((max_lat - min_lat) * 110_540, 1.0)
-    scale = min(
-        (SVG_WIDTH - SVG_PADDING * 2) / width_m,
-        (SVG_HEIGHT - SVG_PADDING * 2) / height_m,
-    )
+
+    pad_x = max(width_m * 0.06, 1.0)
+    pad_y = max(height_m * 0.06, 1.0)
+    width_m += pad_x * 2
+    height_m += pad_y * 2
+
+    map_width = SVG_WIDTH - SVG_PADDING * 2
+    map_height = SVG_HEIGHT - SVG_HEADER - SVG_PADDING
+    scale = min(map_width / width_m, map_height / height_m)
     drawn_width = width_m * scale
     drawn_height = height_m * scale
-    offset_x = (SVG_WIDTH - drawn_width) / 2
-    offset_y = (SVG_HEIGHT - drawn_height) / 2
+    offset_x = SVG_PADDING + (map_width - drawn_width) / 2
+    offset_y = SVG_HEADER + (map_height - drawn_height) / 2
+
+    min_lon_padded = min_lon - pad_x / (111_320 * lon_scale)
+    max_lat_padded = max_lat + pad_y / 110_540
 
     def project(point: tuple[float, float]) -> tuple[float, float]:
         lat, lon = point
-        x_m = (lon - min_lon) * 111_320 * lon_scale
-        y_m = (max_lat - lat) * 110_540
+        x_m = (lon - min_lon_padded) * 111_320 * lon_scale
+        y_m = (max_lat_padded - lat) * 110_540
         return offset_x + x_m * scale, offset_y + y_m * scale
 
     return project, scale
-
 
 def _path(points: list[tuple[float, float]], project) -> str:
     if not points:
@@ -293,10 +301,13 @@ def _placeholder(message: str) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{SVG_WIDTH}" '
         f'height="{SVG_HEIGHT}" viewBox="0 0 {SVG_WIDTH} {SVG_HEIGHT}">'
-        "<rect width='100%' height='100%' fill='#101412'/>"
-        f"<text x='50%' y='50%' fill='#f8faf4' font-size='28' "
-        f"font-family='Arial,sans-serif' text-anchor='middle'>{escape(message)}</text>"
-        "</svg>"
+        '<rect width="100%" height="100%" fill="#f4faf6"/>'
+        '<rect x="0" y="0" width="100%" height="96" fill="#1f2923"/>'
+        '<text x="30" y="58" font-family="sans-serif" font-size="25" '
+        'font-weight="700" fill="white">Kress / Mission Live-Karte</text>'
+        f'<text x="50%" y="52%" fill="#66736a" font-size="22" '
+        f'font-family="sans-serif" text-anchor="middle">{escape(message)}</text>'
+        '</svg>'
     )
 
 
@@ -309,6 +320,7 @@ def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
             zones += sum(isinstance(zone, dict) for zone in boundary.get("zones") or [])
     exclusions = _nested(map_data, "layers", "exclusions", default=[]) or []
     markers = _nested(map_data, "layers", "markers", default=[]) or []
+    layers = map_data.get("layers")
     return {
         "map_status": map_data.get("status"),
         "map_type": map_data.get("type"),
@@ -317,7 +329,43 @@ def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
         "zone_count": zones,
         "exclusion_count": len(exclusions) if isinstance(exclusions, list) else 0,
         "marker_count": len(markers) if isinstance(markers, list) else 0,
+        "map_layers": sorted(layers) if isinstance(layers, dict) else [],
     }
+
+
+def _fleet_mower_marker_svg(x: float, y: float) -> str:
+    """Return the same black/white mower marker style used by Fleet."""
+    radius = 15
+    left = x - 14
+    top = y - 14
+    return "".join(
+        [
+            f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{radius + 2}" '
+            'fill="#ffffff" fill-opacity="0.96"/>',
+            f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{radius}" '
+            'fill="#111614" stroke="#28322d" stroke-width="1.3"/>',
+            f'<g transform="translate({left:.2f} {top:.2f})">',
+            '<rect x="5.2" y="9.1" width="17.6" height="10.2" rx="4.8" fill="#ffffff"/>',
+            '<rect x="3.8" y="10.7" width="2.4" height="3.2" rx="1.1" fill="#ffffff"/>',
+            '<rect x="3.8" y="15.0" width="2.4" height="3.2" rx="1.1" fill="#ffffff"/>',
+            '<rect x="21.8" y="10.7" width="2.4" height="3.2" rx="1.1" fill="#ffffff"/>',
+            '<rect x="21.8" y="15.0" width="2.4" height="3.2" rx="1.1" fill="#ffffff"/>',
+            '<path d="M8.2 12.2h11.6M8.2 16.2h7.8" stroke="#111614" '
+            'stroke-width="1.35" stroke-linecap="round"/>',
+            '<circle cx="18.4" cy="16.2" r="1.55" fill="#111614"/>',
+            '</g>',
+        ]
+    )
+
+
+def _station_marker_svg(x: float, y: float) -> str:
+    """Return a subtle Fleet-palette charging-station marker."""
+    return (
+        f'<g transform="translate({x:.2f} {y:.2f})">'
+        '<circle r="14" fill="#1f2923" stroke="#ffffff" stroke-width="3"/>'
+        '<path d="M3 -10 L-6 2 H0 L-3 11 L8 -4 H2 Z" fill="#ffffff"/>'
+        '</g>'
+    )
 
 
 def render_normal_rtk_map(
@@ -325,8 +373,12 @@ def render_normal_rtk_map(
     robot_position: tuple[float, float] | None,
     mowing_trail: list[tuple[datetime, float, float]] | None = None,
     cutting_width_m: float = DEFAULT_CUTTING_WIDTH_M,
+    *,
+    mower_name: str = "Kress Mission",
+    status_text: str | None = None,
+    battery_percent: int | float | None = None,
 ) -> str:
-    """Render the private Kress/Worx RTK geometry and recent mowing coverage."""
+    """Render Kress/Mission RTK geometry in the Fleet Live-Map visual style."""
     if not isinstance(map_data, dict):
         return _placeholder("Keine RTK-Karte vom Kress Cloud API")
 
@@ -342,31 +394,75 @@ def render_normal_rtk_map(
     trail_segments = _trail_segments(map_data, mowing_trail)
     clip_def = _mowed_clip_def(map_data, project)
 
-    zones: list[str] = []
-    overlays: list[str] = []
+    parts: list[str] = [
+        (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{SVG_WIDTH}" '
+            f'height="{SVG_HEIGHT}" viewBox="0 0 {SVG_WIDTH} {SVG_HEIGHT}" role="img">'
+        ),
+        '<rect width="100%" height="100%" fill="#f4faf6"/>',
+        '<rect x="0" y="0" width="100%" height="96" fill="#1f2923"/>',
+        (
+            '<text x="30" y="35" font-family="sans-serif" font-size="25" '
+            f'font-weight="700" fill="white">{escape(mower_name)}</text>'
+        ),
+    ]
 
+    status_chunks: list[str] = []
+    if battery_percent is not None:
+        status_chunks.append(f"Akku {battery_percent:g}%")
+    if status_text:
+        status_chunks.append(status_text)
+    status_line = " · ".join(status_chunks) or "Kress / Mission RTK"
+    parts.append(
+        '<text x="30" y="65" font-family="sans-serif" font-size="16" '
+        f'fill="#dce7df">{escape(status_line)}</text>'
+    )
+    parts.append(
+        '<text x="30" y="87" font-family="sans-serif" font-size="13" '
+        f'fill="#aac0b1">Coverage: letzte {COVERAGE_WINDOW_HOURS} h · '
+        f'{len(mowing_trail or [])} Punkte</text>'
+    )
+
+    if clip_def:
+        parts.append(f"<defs>{clip_def}</defs>")
+
+    # Base lawn/zones: same palette as Fleet's not-mowed area.
     for layer, contour in _iter_contours(map_data):
-        outer = _contour_points(contour)
-        if not outer:
+        if layer != "zone":
             continue
-        if layer == "zone":
-            zones.append(f'<path class="zone" d="{_path(outer, project)}"/>')
-            for child in contour.get("children") or []:
-                if isinstance(child, dict):
-                    child_points = _contour_points(child)
-                    if child_points:
-                        overlays.append(
-                            f'<path class="hole" d="{_path(child_points, project)}"/>'
-                        )
-        else:
-            overlays.append(
-                f'<path class="exclusion" d="{_path(outer, project)}"/>'
+        path = _compound_zone_path(contour, project)
+        if path:
+            parts.append(
+                f'<path d="{path}" fill="#9BE2B9" fill-opacity="0.93" '
+                'stroke="#159657" stroke-width="2.4" fill-rule="evenodd"/>'
             )
 
-    body: list[str] = list(zones)
+    # Recent local coverage: same darker green used by Fleet coverage.
     if clip_def:
-        body.extend(_mowed_segments_svg(trail_segments, project, swath_width_px))
-    body.extend(overlays)
+        for segment in trail_segments:
+            segment_points = [
+                (latitude, longitude) for _, latitude, longitude in segment
+            ]
+            path = _open_path(segment_points, project)
+            if path:
+                parts.append(
+                    '<g clip-path="url(#mowed-clip)">'
+                    f'<path d="{path}" fill="none" stroke="#08AA57" '
+                    f'stroke-opacity="0.88" stroke-width="{swath_width_px:.2f}" '
+                    'stroke-linecap="round" stroke-linejoin="round"/>'
+                    '</g>'
+                )
+
+    # Exclusions/No-Go areas: same red palette as Fleet.
+    for layer, contour in _iter_contours(map_data):
+        if layer != "exclusion":
+            continue
+        path = _compound_zone_path(contour, project)
+        if path:
+            parts.append(
+                f'<path d="{path}" fill="#FF3344" fill-opacity="0.90" '
+                'stroke="#D9152B" stroke-width="2.0" fill-rule="evenodd"/>'
+            )
 
     for marker in _nested(map_data, "layers", "markers", default=[]) or []:
         if not isinstance(marker, dict):
@@ -379,37 +475,38 @@ def render_normal_rtk_map(
         )
         if pair is not None:
             x, y = project(pair)
-            body.append(
-                f'<g class="station" transform="translate({x:.2f} {y:.2f})">'
-                '<circle r="16"/><path d="M 3 -11 L -6 2 H 0 L -3 12 L 8 -4 H 2 Z"/>'
-                "</g>"
-            )
+            parts.append(_station_marker_svg(x, y))
 
     if robot_position is not None:
         x, y = project(robot_position)
-        body.append(
-            f'<g class="robot" transform="translate({x:.2f} {y:.2f})">'
-            '<circle class="halo" r="18"/><circle class="body" r="11"/>'
-            '<circle class="dot" r="3"/></g>'
-        )
+        parts.append(_fleet_mower_marker_svg(x, y))
 
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{SVG_WIDTH}" '
-        f'height="{SVG_HEIGHT}" viewBox="0 0 {SVG_WIDTH} {SVG_HEIGHT}" role="img">'
-        "<style>"
-        "svg{background:#050607}.grid{stroke:#202624;stroke-width:1;opacity:.45}"
-        ".zone{fill:#087a37;stroke:#27c267;stroke-width:4;stroke-linejoin:round}"
-        ".mowed{fill:none;stroke:#8ff7b0;stroke-linecap:round;stroke-linejoin:round;opacity:.72}"
-        ".hole{fill:#050607;stroke:#d5dae0;stroke-width:3}"
-        ".exclusion{fill:#a85f2c;stroke:#e59052;stroke-width:4;opacity:.95}"
-        ".station circle{fill:#70380f;stroke:#f6a15f;stroke-width:2}.station path{fill:#fff}"
-        ".robot .halo{fill:#f47b20;opacity:.28}.robot .body{fill:#f47b20;stroke:#fff;stroke-width:2}"
-        ".robot .dot{fill:#111}"
-        "</style>"
-        '<defs><pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">'
-        '<path class="grid" d="M 48 0 L 0 0 0 48"/></pattern>'
-        f"{clip_def}</defs>"
-        f'<rect width="{SVG_WIDTH}" height="{SVG_HEIGHT}" fill="url(#grid)"/>'
-        f"{''.join(body)}"
-        "</svg>"
+    # Same small legend layout/palette as Fleet.
+    legend_x = 44
+    legend_y = SVG_HEIGHT - 67
+    parts.extend(
+        [
+            f'<rect x="{legend_x - 10}" y="{legend_y - 20}" width="445" height="42" '
+            'rx="7" fill="white" fill-opacity="0.82"/>',
+            f'<rect x="{legend_x}" y="{legend_y - 9}" width="20" height="12" '
+            'fill="#9BE2B9" stroke="#159657"/>',
+            f'<text x="{legend_x + 27}" y="{legend_y + 2}" font-family="sans-serif" '
+            'font-size="12" fill="#344039">Nicht gemäht</text>',
+            f'<rect x="{legend_x + 140}" y="{legend_y - 9}" width="20" height="12" '
+            'fill="#FF3344" stroke="#D9152B"/>',
+            f'<text x="{legend_x + 167}" y="{legend_y + 2}" font-family="sans-serif" '
+            'font-size="12" fill="#344039">No-Go aktiv</text>',
+            f'<rect x="{legend_x + 263}" y="{legend_y - 9}" width="20" height="12" '
+            'fill="#08AA57" fill-opacity="0.88" stroke="#078648"/>',
+            f'<text x="{legend_x + 290}" y="{legend_y + 2}" font-family="sans-serif" '
+            'font-size="12" fill="#344039">Gemäht</text>',
+        ]
     )
+
+    parts.append(
+        f'<text x="{SVG_WIDTH - 25}" y="{SVG_HEIGHT - 18}" text-anchor="end" '
+        'font-family="sans-serif" font-size="13" fill="#69746d">'
+        f'Kress / Mission · RTK · {len(mowing_trail or [])} Coverage-Punkte</text>'
+    )
+    parts.append("</svg>")
+    return "".join(parts)

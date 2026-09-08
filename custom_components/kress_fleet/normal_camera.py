@@ -19,6 +19,31 @@ from .normal_map_renderer import (
 )
 
 
+def _status_values(device: Any) -> tuple[int | None, str | None]:
+    status = getattr(device, "status", None)
+    if isinstance(status, dict):
+        raw_id = status.get("id")
+        raw_description = status.get("description")
+    else:
+        raw_id = getattr(status, "id", None)
+        raw_description = getattr(status, "description", None)
+    try:
+        status_id = int(raw_id) if raw_id is not None else None
+    except (TypeError, ValueError):
+        status_id = None
+    description = None if raw_description in (None, "") else str(raw_description)
+    return status_id, description
+
+
+def _battery_percent(device: Any) -> int | float | None:
+    battery = getattr(device, "battery", None)
+    if isinstance(battery, dict):
+        value = battery.get("percent")
+    else:
+        value = getattr(battery, "percent", None)
+    return value if isinstance(value, (int, float)) else None
+
+
 class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
     """Render a Kress Mission RTK map as an SVG camera image."""
 
@@ -54,12 +79,17 @@ class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         trail = self.coordinator.rtk_mowing_trail(self.serial)
+        status_id, status_description = _status_values(self.device)
+        position = normal_rtk_position(self.device)
         attrs = {
             "map_id": normal_rtk_map_id(self.device),
             "coverage_source": "local_rtk_mowing_trail",
             "coverage_points": len(trail),
             "coverage_window_hours": COVERAGE_WINDOW_HOURS,
             "cutting_width_cm": round(normal_cutting_width_m(self.device) * 100, 1),
+            "coverage_status_id": status_id,
+            "coverage_status": status_description,
+            "coverage_position": list(position) if position is not None else None,
         }
         attrs.update(normal_map_diagnostics(self._last_map_data))
         return {key: value for key, value in attrs.items() if value is not None}
@@ -72,9 +102,14 @@ class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
         map_data = await self.coordinator.async_get_rtk_map(map_id)
         if map_data is not None:
             self._last_map_data = map_data
+        status_id, status_description = _status_values(self.device)
         return render_normal_rtk_map(
             self._last_map_data,
             normal_rtk_position(self.device),
             self.coordinator.rtk_mowing_trail(self.serial),
             normal_cutting_width_m(self.device),
+            mower_name=str(getattr(self.device, "name", "Kress Mission")),
+            status_text=status_description
+            or (str(status_id) if status_id is not None else None),
+            battery_percent=_battery_percent(self.device),
         ).encode()

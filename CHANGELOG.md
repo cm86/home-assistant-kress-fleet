@@ -9,6 +9,13 @@
 
 # Changelog
 
+## 0.4.0-beta.6 - 2026-09-08
+
+- Restyled the normal Kress / Mission RTK Live Map to match the Fleet Live Map palette and mower marker.
+- Added coverage diagnostics for the raw mower status and RTK position.
+- Made local RTK coverage detection accept both known cutting status IDs and upstream cutting status descriptions.
+- Fleet behavior remains unchanged.
+
 ## 0.4.0-beta.5 - 2026-09-08
 
 - Added recent RTK mowing trail / coverage overlay for normal Kress / Mission Live Map.

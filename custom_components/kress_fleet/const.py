@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "kress_fleet"
 NAME: Final = "Kress"
-VERSION: Final = "0.4.0-beta.4"
+VERSION: Final = "0.4.0-beta.5"
 CONFIG_ENTRY_VERSION: Final = 2
 
 CONF_BACKEND: Final = "backend"

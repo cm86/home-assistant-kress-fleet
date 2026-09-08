@@ -9,6 +9,12 @@
 
 # Changelog
 
+## 0.4.0-beta.5 - 2026-09-08
+
+- Added recent RTK mowing trail / coverage overlay for normal Kress / Mission Live Map.
+- RTK points are recorded only while the mower reports a cutting state and rendered as mower-width swaths.
+- Coverage is kept locally in memory for the recent six-hour window; Fleet behavior remains unchanged.
+
 ## 0.4.0-beta.4 - 2026-09-08
 
 - Fixed normal Kress / Mission RTK Live Map packaging.

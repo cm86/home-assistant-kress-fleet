@@ -11,7 +11,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .normal_cloud import KressNormalCoordinator
 from .normal_entity import normal_device_info, normal_rtk_map_id, normal_rtk_position
-from .normal_map_renderer import normal_map_diagnostics, render_normal_rtk_map
+from .normal_map_renderer import (
+    COVERAGE_WINDOW_HOURS,
+    normal_cutting_width_m,
+    normal_map_diagnostics,
+    render_normal_rtk_map,
+)
 
 
 class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
@@ -48,7 +53,14 @@ class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        attrs = {"map_id": normal_rtk_map_id(self.device)}
+        trail = self.coordinator.rtk_mowing_trail(self.serial)
+        attrs = {
+            "map_id": normal_rtk_map_id(self.device),
+            "coverage_source": "local_rtk_mowing_trail",
+            "coverage_points": len(trail),
+            "coverage_window_hours": COVERAGE_WINDOW_HOURS,
+            "cutting_width_cm": round(normal_cutting_width_m(self.device) * 100, 1),
+        }
         attrs.update(normal_map_diagnostics(self._last_map_data))
         return {key: value for key, value in attrs.items() if value is not None}
 
@@ -61,5 +73,8 @@ class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
         if map_data is not None:
             self._last_map_data = map_data
         return render_normal_rtk_map(
-            self._last_map_data, normal_rtk_position(self.device)
+            self._last_map_data,
+            normal_rtk_position(self.device),
+            self.coordinator.rtk_mowing_trail(self.serial),
+            normal_cutting_width_m(self.device),
         ).encode()

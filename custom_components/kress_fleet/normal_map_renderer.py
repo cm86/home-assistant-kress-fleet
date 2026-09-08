@@ -5,13 +5,32 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from html import escape
-from math import cos, radians
+from math import cos, hypot, radians
 from typing import Any
 
 SVG_WIDTH = 900
 SVG_HEIGHT = 620
 SVG_PADDING = 48
+COVERAGE_WINDOW_HOURS = 6
+TRAIL_MAX_AGE = timedelta(hours=COVERAGE_WINDOW_HOURS)
+TRAIL_MAX_GAP = timedelta(minutes=5)
+TRAIL_MAX_SEGMENT_DISTANCE_M = 35.0
+TRAIL_MIN_POINT_DISTANCE_M = 0.25
+TRAIL_MAP_MARGIN_M = 12.0
+DEFAULT_CUTTING_WIDTH_M = 0.20
+MOWED_SWATH_MIN_WIDTH_PX = 3.0
+MOWED_SWATH_MAX_WIDTH_PX = 32.0
+
+# Known Kress RTK cutting widths. Unknown models use the conservative 20 cm default.
+CUTTING_WIDTH_BY_MODEL_M = {
+    "KR171E": 0.20,
+    "KR172E": 0.20,
+    "KR173E": 0.20,
+    "KR174E": 0.22,
+    "KR230E": 0.22,
+}
 
 
 def _nested(value: Any, *keys: str, default: Any = None) -> Any:
@@ -30,6 +49,19 @@ def _pair(value: Any) -> tuple[float, float] | None:
         return float(value[0]), float(value[1])
     except (TypeError, ValueError):
         return None
+
+
+def _normalize_model(value: Any) -> str:
+    return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def normal_cutting_width_m(device: Any) -> float:
+    """Return the known cutting width for a normal Kress mower."""
+    normalized = _normalize_model(getattr(device, "model", None))
+    for model, width in CUTTING_WIDTH_BY_MODEL_M.items():
+        if model in normalized:
+            return width
+    return DEFAULT_CUTTING_WIDTH_M
 
 
 def _contour_points(contour: dict[str, Any]) -> list[tuple[float, float]]:
@@ -109,7 +141,7 @@ def _projector(points: list[tuple[float, float]]):
         y_m = (max_lat - lat) * 110_540
         return offset_x + x_m * scale, offset_y + y_m * scale
 
-    return project
+    return project, scale
 
 
 def _path(points: list[tuple[float, float]], project) -> str:
@@ -121,6 +153,140 @@ def _path(points: list[tuple[float, float]], project) -> str:
     parts.extend(f"L {x:.2f} {y:.2f}" for x, y in projected[1:])
     parts.append("Z")
     return " ".join(parts)
+
+
+def _open_path(points: list[tuple[float, float]], project) -> str:
+    if not points:
+        return ""
+    projected = [project(point) for point in points]
+    first_x, first_y = projected[0]
+    parts = [f"M {first_x:.2f} {first_y:.2f}"]
+    parts.extend(f"L {x:.2f} {y:.2f}" for x, y in projected[1:])
+    return " ".join(parts)
+
+
+def _compound_zone_path(contour: dict[str, Any], project) -> str:
+    parts: list[str] = []
+    outer = _contour_points(contour)
+    if outer:
+        parts.append(_path(outer, project))
+    for child in contour.get("children") or []:
+        if isinstance(child, dict):
+            child_points = _contour_points(child)
+            if child_points:
+                parts.append(_path(child_points, project))
+    return " ".join(part for part in parts if part)
+
+
+def _mowed_clip_def(map_data: dict[str, Any], project) -> str:
+    clip_paths: list[str] = []
+    for layer, contour in _iter_contours(map_data):
+        if layer != "zone":
+            continue
+        path = _compound_zone_path(contour, project)
+        if path:
+            clip_paths.append(f'<path d="{path}" fill-rule="evenodd"/>')
+    if not clip_paths:
+        return ""
+    return '<clipPath id="mowed-clip">' + "".join(clip_paths) + "</clipPath>"
+
+
+def _distance_m(first: tuple[float, float], second: tuple[float, float]) -> float:
+    mean_lat = (first[0] + second[0]) / 2
+    lon_scale = max(cos(radians(mean_lat)), 0.1)
+    x_m = (second[1] - first[1]) * 111_320 * lon_scale
+    y_m = (second[0] - first[0]) * 110_540
+    return hypot(x_m, y_m)
+
+
+def _coordinate_bounds(
+    points: list[tuple[float, float]],
+) -> tuple[float, float, float, float] | None:
+    if not points:
+        return None
+    lats = [point[0] for point in points]
+    lons = [point[1] for point in points]
+    return min(lats), max(lats), min(lons), max(lons)
+
+
+def _point_in_bounds(
+    point: tuple[float, float],
+    bounds: tuple[float, float, float, float],
+    margin_m: float,
+) -> bool:
+    min_lat, max_lat, min_lon, max_lon = bounds
+    mean_lat = (min_lat + max_lat) / 2
+    lon_scale = max(cos(radians(mean_lat)), 0.1)
+    lat_margin = margin_m / 110_540
+    lon_margin = margin_m / (111_320 * lon_scale)
+    lat, lon = point
+    return (
+        min_lat - lat_margin <= lat <= max_lat + lat_margin
+        and min_lon - lon_margin <= lon <= max_lon + lon_margin
+    )
+
+
+def _trail_segments(
+    map_data: dict[str, Any],
+    trail: list[tuple[datetime, float, float]] | None,
+) -> list[list[tuple[datetime, float, float]]]:
+    if not trail:
+        return []
+
+    now = datetime.now(UTC)
+    bounds = _coordinate_bounds(_all_points(map_data, None))
+    segments: list[list[tuple[datetime, float, float]]] = []
+    current: list[tuple[datetime, float, float]] = []
+    previous_time: datetime | None = None
+    previous_point: tuple[float, float] | None = None
+
+    def flush() -> None:
+        if len(current) > 1:
+            segments.append(list(current))
+        current.clear()
+
+    for timestamp, latitude, longitude in trail:
+        point = (latitude, longitude)
+        if now - timestamp > TRAIL_MAX_AGE:
+            continue
+        if bounds is not None and not _point_in_bounds(point, bounds, TRAIL_MAP_MARGIN_M):
+            flush()
+            previous_time = None
+            previous_point = None
+            continue
+        if previous_point is not None:
+            distance = _distance_m(previous_point, point)
+            if distance < TRAIL_MIN_POINT_DISTANCE_M:
+                continue
+            if (
+                previous_time is not None
+                and timestamp - previous_time > TRAIL_MAX_GAP
+            ) or distance > TRAIL_MAX_SEGMENT_DISTANCE_M:
+                flush()
+        current.append((timestamp, latitude, longitude))
+        previous_time = timestamp
+        previous_point = point
+
+    flush()
+    return segments
+
+
+def _mowed_segments_svg(
+    segments: list[list[tuple[datetime, float, float]]],
+    project,
+    swath_width_px: float,
+) -> list[str]:
+    paths: list[str] = []
+    for segment in segments:
+        points = [(latitude, longitude) for _, latitude, longitude in segment]
+        path = _open_path(points, project)
+        if path:
+            paths.append(
+                f'<path class="mowed" d="{path}" stroke-width="{swath_width_px:.2f}"/>'
+            )
+    if not paths:
+        return []
+    return ['<g class="mowed-area" clip-path="url(#mowed-clip)">', *paths, "</g>"]
 
 
 def _placeholder(message: str) -> str:
@@ -157,8 +323,10 @@ def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
 def render_normal_rtk_map(
     map_data: dict[str, Any] | None,
     robot_position: tuple[float, float] | None,
+    mowing_trail: list[tuple[datetime, float, float]] | None = None,
+    cutting_width_m: float = DEFAULT_CUTTING_WIDTH_M,
 ) -> str:
-    """Render the private Kress/Worx RTK geometry as an SVG."""
+    """Render the private Kress/Worx RTK geometry and recent mowing coverage."""
     if not isinstance(map_data, dict):
         return _placeholder("Keine RTK-Karte vom Kress Cloud API")
 
@@ -166,23 +334,39 @@ def render_normal_rtk_map(
     if not points:
         return _placeholder("RTK-Karte enthaelt keine Geometrie")
 
-    project = _projector(points)
-    body: list[str] = []
+    project, meters_to_pixels = _projector(points)
+    swath_width_px = max(
+        MOWED_SWATH_MIN_WIDTH_PX,
+        min(MOWED_SWATH_MAX_WIDTH_PX, cutting_width_m * meters_to_pixels),
+    )
+    trail_segments = _trail_segments(map_data, mowing_trail)
+    clip_def = _mowed_clip_def(map_data, project)
+
+    zones: list[str] = []
+    overlays: list[str] = []
 
     for layer, contour in _iter_contours(map_data):
         outer = _contour_points(contour)
         if not outer:
             continue
-        css_class = "zone" if layer == "zone" else "exclusion"
-        body.append(f'<path class="{css_class}" d="{_path(outer, project)}"/>')
         if layer == "zone":
+            zones.append(f'<path class="zone" d="{_path(outer, project)}"/>')
             for child in contour.get("children") or []:
                 if isinstance(child, dict):
                     child_points = _contour_points(child)
                     if child_points:
-                        body.append(
+                        overlays.append(
                             f'<path class="hole" d="{_path(child_points, project)}"/>'
                         )
+        else:
+            overlays.append(
+                f'<path class="exclusion" d="{_path(outer, project)}"/>'
+            )
+
+    body: list[str] = list(zones)
+    if clip_def:
+        body.extend(_mowed_segments_svg(trail_segments, project, swath_width_px))
+    body.extend(overlays)
 
     for marker in _nested(map_data, "layers", "markers", default=[]) or []:
         if not isinstance(marker, dict):
@@ -215,6 +399,7 @@ def render_normal_rtk_map(
         "<style>"
         "svg{background:#050607}.grid{stroke:#202624;stroke-width:1;opacity:.45}"
         ".zone{fill:#087a37;stroke:#27c267;stroke-width:4;stroke-linejoin:round}"
+        ".mowed{fill:none;stroke:#8ff7b0;stroke-linecap:round;stroke-linejoin:round;opacity:.72}"
         ".hole{fill:#050607;stroke:#d5dae0;stroke-width:3}"
         ".exclusion{fill:#a85f2c;stroke:#e59052;stroke-width:4;opacity:.95}"
         ".station circle{fill:#70380f;stroke:#f6a15f;stroke-width:2}.station path{fill:#fff}"
@@ -222,7 +407,8 @@ def render_normal_rtk_map(
         ".robot .dot{fill:#111}"
         "</style>"
         '<defs><pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">'
-        '<path class="grid" d="M 48 0 L 0 0 0 48"/></pattern></defs>'
+        '<path class="grid" d="M 48 0 L 0 0 0 48"/></pattern>'
+        f"{clip_def}</defs>"
         f'<rect width="{SVG_WIDTH}" height="{SVG_HEIGHT}" fill="url(#grid)"/>'
         f"{''.join(body)}"
         "</svg>"

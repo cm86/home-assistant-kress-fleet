@@ -7,6 +7,7 @@ from __future__ import annotations
 from collections import deque
 from datetime import UTC, datetime, timedelta
 import logging
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -145,13 +146,31 @@ class KressNormalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     continue
             trail.append((now, latitude, longitude))
 
+    def _local_timezone(self):
+        """Return the Home Assistant configured timezone."""
+        try:
+            return ZoneInfo(self.hass.config.time_zone)
+        except (ZoneInfoNotFoundError, ValueError, TypeError):
+            return UTC
+
+    def rtk_coverage_period(self) -> tuple[datetime, datetime]:
+        """Return today's local coverage period from midnight until now."""
+        timezone = self._local_timezone()
+        now = datetime.now(timezone)
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start, now
+
     def rtk_mowing_trail(
         self, serial: str, max_points: int = RTK_MOWING_TRAIL_MAX_POINTS
     ) -> list[tuple[datetime, float, float]]:
-        """Return the recent in-memory RTK mowing trail."""
+        """Return only RTK mowing trail points from the current local day."""
         trail = self._rtk_mowing_trails.get(serial)
         if trail is None:
             return []
+        start_local, _ = self.rtk_coverage_period()
+        start_utc = start_local.astimezone(UTC)
+        while trail and trail[0][0] < start_utc:
+            trail.popleft()
         return list(trail)[-max_points:]
 
     async def async_get_rtk_map(

@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from html import escape
 from math import cos, hypot, radians
 from typing import Any
@@ -14,8 +14,6 @@ SVG_WIDTH = 1100
 SVG_HEIGHT = 760
 SVG_HEADER = 96
 SVG_PADDING = 34
-COVERAGE_WINDOW_HOURS = 6
-TRAIL_MAX_AGE = timedelta(hours=COVERAGE_WINDOW_HOURS)
 TRAIL_MAX_GAP = timedelta(minutes=5)
 TRAIL_MAX_SEGMENT_DISTANCE_M = 35.0
 TRAIL_MIN_POINT_DISTANCE_M = 0.25
@@ -241,7 +239,6 @@ def _trail_segments(
     if not trail:
         return []
 
-    now = datetime.now(UTC)
     bounds = _coordinate_bounds(_all_points(map_data, None))
     segments: list[list[tuple[datetime, float, float]]] = []
     current: list[tuple[datetime, float, float]] = []
@@ -255,8 +252,6 @@ def _trail_segments(
 
     for timestamp, latitude, longitude in trail:
         point = (latitude, longitude)
-        if now - timestamp > TRAIL_MAX_AGE:
-            continue
         if bounds is not None and not _point_in_bounds(point, bounds, TRAIL_MAP_MARGIN_M):
             flush()
             previous_time = None
@@ -419,8 +414,7 @@ def render_normal_rtk_map(
     )
     parts.append(
         '<text x="30" y="87" font-family="sans-serif" font-size="13" '
-        f'fill="#aac0b1">Coverage: letzte {COVERAGE_WINDOW_HOURS} h · '
-        f'{len(mowing_trail or [])} Punkte</text>'
+        f'fill="#aac0b1">Coverage: Heute · {len(mowing_trail or [])} Punkte</text>'
     )
 
     if clip_def:

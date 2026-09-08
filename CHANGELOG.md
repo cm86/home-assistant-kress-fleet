@@ -9,6 +9,13 @@
 
 # Changelog
 
+## 0.4.0-beta.7 - 2026-09-08
+
+- Changed normal Kress / Mission RTK coverage period from a rolling six-hour window to the current local calendar day, matching Fleet's default one-day coverage period.
+- Live Map now exposes `coverage_days`, `coverage_from` and `coverage_to` instead of `coverage_window_hours`.
+- Coverage trail points automatically roll over at local midnight.
+- Fleet behavior remains unchanged.
+
 ## 0.4.0-beta.6 - 2026-09-08
 
 - Restyled the normal Kress / Mission RTK Live Map to match the Fleet Live Map palette and mower marker.

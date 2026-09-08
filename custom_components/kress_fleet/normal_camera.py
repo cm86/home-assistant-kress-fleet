@@ -12,7 +12,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .normal_cloud import KressNormalCoordinator
 from .normal_entity import normal_device_info, normal_rtk_map_id, normal_rtk_position
 from .normal_map_renderer import (
-    COVERAGE_WINDOW_HOURS,
     normal_cutting_width_m,
     normal_map_diagnostics,
     render_normal_rtk_map,
@@ -81,11 +80,14 @@ class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
         trail = self.coordinator.rtk_mowing_trail(self.serial)
         status_id, status_description = _status_values(self.device)
         position = normal_rtk_position(self.device)
+        coverage_from, coverage_to = self.coordinator.rtk_coverage_period()
         attrs = {
             "map_id": normal_rtk_map_id(self.device),
             "coverage_source": "local_rtk_mowing_trail",
             "coverage_points": len(trail),
-            "coverage_window_hours": COVERAGE_WINDOW_HOURS,
+            "coverage_days": 1,
+            "coverage_from": coverage_from.isoformat(),
+            "coverage_to": coverage_to.isoformat(),
             "cutting_width_cm": round(normal_cutting_width_m(self.device) * 100, 1),
             "coverage_status_id": status_id,
             "coverage_status": status_description,

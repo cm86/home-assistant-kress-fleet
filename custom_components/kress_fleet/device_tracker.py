@@ -3,7 +3,7 @@
 # MTrab/landroid_cloud and MTrab/pyworxcloud (GPL-3.0).
 # Kress Fleet modifications began on 2026-08-21; see NOTICE and LICENSE.
 
-"""GPS device tracker for Kress Fleet."""
+"""GPS device tracker platform for Kress."""
 
 from __future__ import annotations
 
@@ -11,7 +11,9 @@ from homeassistant.components.device_tracker import SourceType, TrackerEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .const import BACKEND_KRESS
 from .entity import KressFleetEntity
+from .normal_tracker import KressNormalLocation
 
 
 async def async_setup_entry(
@@ -20,6 +22,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data.coordinator
+    if getattr(entry.runtime_data, "backend", None) == BACKEND_KRESS:
+        async_add_entities(
+            KressNormalLocation(coordinator, serial) for serial in coordinator.data
+        )
+        return
     async_add_entities(
         KressFleetLocation(coordinator, mower_uuid) for mower_uuid in coordinator.data
     )

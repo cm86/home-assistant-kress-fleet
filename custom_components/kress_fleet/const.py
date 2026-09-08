@@ -3,7 +3,7 @@
 # MTrab/landroid_cloud and MTrab/pyworxcloud (GPL-3.0).
 # Kress Fleet modifications began on 2026-08-21; see NOTICE and LICENSE.
 
-"""Constants for Kress Fleet."""
+"""Constants for the Kress integration."""
 
 from __future__ import annotations
 
@@ -12,8 +12,13 @@ from typing import Final
 from homeassistant.const import Platform
 
 DOMAIN: Final = "kress_fleet"
-NAME: Final = "Kress Fleet"
-VERSION: Final = "0.3.19"
+NAME: Final = "Kress"
+VERSION: Final = "0.4.0-beta.1"
+CONFIG_ENTRY_VERSION: Final = 2
+
+CONF_BACKEND: Final = "backend"
+BACKEND_FLEET: Final = "fleet"
+BACKEND_KRESS: Final = "kress"
 
 PLATFORMS: Final = [
     Platform.LAWN_MOWER,
@@ -23,6 +28,12 @@ PLATFORMS: Final = [
     Platform.CAMERA,
     Platform.SELECT,
     Platform.BUTTON,
+]
+
+NORMAL_PLATFORMS: Final = [
+    Platform.LAWN_MOWER,
+    Platform.DEVICE_TRACKER,
+    Platform.SENSOR,
 ]
 
 FLEET_BASE_URL: Final = "https://fleet.kress.com"

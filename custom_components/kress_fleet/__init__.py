@@ -3,7 +3,7 @@
 # MTrab/landroid_cloud and MTrab/pyworxcloud (GPL-3.0).
 # Kress Fleet modifications began on 2026-08-21; see NOTICE and LICENSE.
 
-"""Kress Fleet integration for Home Assistant."""
+"""Kress integration for Home Assistant."""
 
 from __future__ import annotations
 
@@ -19,22 +19,80 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers import device_registry as dr
+from pyworxcloud import WorxCloud
+from pyworxcloud.exceptions import (
+    APIException,
+    AuthorizationError,
+    ForbiddenError,
+    InternalServerError,
+    NoConnectionError,
+    NotFoundError,
+    RequestError,
+    ServiceUnavailableError,
+    TooManyRequestsError,
+)
 
 from .api import FleetAuthError, FleetConnectionError, FleetError, KressFleetApi
-from .const import DOMAIN, PLATFORMS
+from .const import (
+    BACKEND_FLEET,
+    BACKEND_KRESS,
+    CONFIG_ENTRY_VERSION,
+    CONF_BACKEND,
+    DOMAIN,
+    NORMAL_PLATFORMS,
+    PLATFORMS,
+)
 from .coordinator import KressFleetCoordinator
 from .mqtt import KressFleetMqtt
+from .normal_cloud import KressNormalCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
 class KressFleetRuntimeData:
-    """Runtime objects for one config entry."""
+    """Runtime objects for one Fleet config entry."""
 
     api: KressFleetApi
     coordinator: KressFleetCoordinator
     mqtt: KressFleetMqtt
+    backend: str = BACKEND_FLEET
+
+
+@dataclass(slots=True)
+class KressNormalRuntimeData:
+    """Runtime objects for one normal Kress config entry."""
+
+    cloud: WorxCloud
+    coordinator: KressNormalCoordinator
+    backend: str = BACKEND_KRESS
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate legacy Fleet config entries to the unified backend schema."""
+    if entry.version > CONFIG_ENTRY_VERSION:
+        _LOGGER.error(
+            "Cannot migrate Kress config entry %s from newer version %s",
+            entry.entry_id,
+            entry.version,
+        )
+        return False
+
+    if entry.version < CONFIG_ENTRY_VERSION:
+        data = dict(entry.data)
+        data.setdefault(CONF_BACKEND, BACKEND_FLEET)
+        hass.config_entries.async_update_entry(
+            entry,
+            data=data,
+            version=CONFIG_ENTRY_VERSION,
+        )
+        _LOGGER.info(
+            "Migrated Kress config entry %s to version %s using Fleet backend",
+            entry.entry_id,
+            CONFIG_ENTRY_VERSION,
+        )
+
+    return True
 
 
 def _is_placeholder_mower_name(name: str | None, mower_uuid: str) -> bool:
@@ -160,7 +218,7 @@ async def _async_prepare_initial_device_names(
             mower.name = f"Kress Fleet {index}"
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def _async_setup_fleet_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Kress Fleet from a config entry."""
     started = monotonic()
     session = async_create_clientsession(
@@ -234,7 +292,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def _async_unload_fleet_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload Kress Fleet."""
     runtime: KressFleetRuntimeData = entry.runtime_data
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
@@ -242,3 +300,70 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await runtime.mqtt.async_stop()
         await runtime.api.async_close()
     return unloaded
+
+
+async def _async_setup_normal_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up a mower account from the normal Kress cloud."""
+    cloud = WorxCloud(
+        entry.data[CONF_USERNAME],
+        entry.data[CONF_PASSWORD],
+        "kress",
+        tz=hass.config.time_zone,
+        command_timeout=30.0,
+        mqtt_connect_timeout=8.0,
+    )
+    try:
+        async with asyncio.timeout(60):
+            await cloud.authenticate()
+            connected = await cloud.connect()
+    except AuthorizationError as err:
+        await cloud.disconnect()
+        raise ConfigEntryAuthFailed("Invalid Kress credentials") from err
+    except (
+        RequestError,
+        ForbiddenError,
+        NotFoundError,
+        TooManyRequestsError,
+        NoConnectionError,
+        ServiceUnavailableError,
+        InternalServerError,
+        APIException,
+        TimeoutError,
+    ) as err:
+        await cloud.disconnect()
+        raise ConfigEntryNotReady("Kress cloud service unavailable") from err
+
+    if not connected:
+        await cloud.disconnect()
+        raise ConfigEntryNotReady("No normal Kress mower found")
+
+    coordinator = KressNormalCoordinator(hass, entry, cloud)
+    coordinator.bind_callbacks()
+    coordinator.async_set_updated_data(dict(coordinator.data))
+    entry.runtime_data = KressNormalRuntimeData(cloud, coordinator)
+
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, NORMAL_PLATFORMS)
+    except Exception:
+        await cloud.disconnect()
+        raise
+    return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up either Kress Fleet or the normal Kress cloud."""
+    backend = str(entry.data.get(CONF_BACKEND, BACKEND_FLEET))
+    if backend == BACKEND_KRESS:
+        return await _async_setup_normal_entry(hass, entry)
+    return await _async_setup_fleet_entry(hass, entry)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload the configured Kress backend."""
+    runtime = entry.runtime_data
+    if getattr(runtime, "backend", BACKEND_FLEET) == BACKEND_KRESS:
+        unloaded = await hass.config_entries.async_unload_platforms(entry, NORMAL_PLATFORMS)
+        if unloaded:
+            await runtime.cloud.disconnect()
+        return unloaded
+    return await _async_unload_fleet_entry(hass, entry)

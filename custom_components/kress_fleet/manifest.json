@@ -1,6 +1,6 @@
 {
   "domain": "kress_fleet",
-  "name": "Kress Fleet",
+  "name": "Kress",
   "codeowners": [
     "@cm86"
   ],
@@ -11,10 +11,12 @@
   "issue_tracker": "https://github.com/cm86/home-assistant-kress-fleet/issues",
   "loggers": [
     "custom_components.kress_fleet",
-    "paho.mqtt"
+    "paho.mqtt",
+    "pyworxcloud"
   ],
   "requirements": [
-    "paho-mqtt==2.1.0"
+    "paho-mqtt==2.1.0",
+    "pyworxcloud==6.4.2"
   ],
-  "version": "0.3.20"
+  "version": "0.4.0-beta.1"
 }

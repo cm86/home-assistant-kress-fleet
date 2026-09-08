@@ -3,7 +3,7 @@
 # MTrab/landroid_cloud and MTrab/pyworxcloud (GPL-3.0).
 # Kress Fleet modifications began on 2026-08-21; see NOTICE and LICENSE.
 
-"""Sensor platform for Kress Fleet."""
+"""Sensor platform for Kress."""
 
 from __future__ import annotations
 
@@ -29,7 +29,9 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .const import BACKEND_KRESS
 from .entity import KressFleetEntity
+from .normal_sensor import KressNormalBatterySensor, KressNormalStatusSensor
 from .models import ERROR_STATE_OPTIONS, FleetMower, error_text
 from .map_renderer import current_zone_name
 
@@ -180,6 +182,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up Kress Fleet sensors."""
     coordinator = entry.runtime_data.coordinator
+    if getattr(entry.runtime_data, "backend", None) == BACKEND_KRESS:
+        entities = []
+        for serial in coordinator.data:
+            entities.append(KressNormalBatterySensor(coordinator, serial))
+            entities.append(KressNormalStatusSensor(coordinator, serial))
+        async_add_entities(entities)
+        return
     async_add_entities(
         KressFleetSensor(coordinator, mower_uuid, description)
         for mower_uuid in coordinator.data

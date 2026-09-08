@@ -16,6 +16,9 @@ web application's private REST/SSO/MQTT interfaces.
 
 **Languages:** English and German are bundled. User-visible entity names, select options and live-map captions follow the Home Assistant instance language; unsupported languages fall back to English.
 
+> **v0.4 beta:** The integration now supports both the normal Kress/Mission cloud and Kress Fleet. Existing Fleet installations continue to use the Fleet backend automatically.
+
+
 ## Features
 
 - Kress Fleet sign-in with email + password; no manually copied cookies/tokens

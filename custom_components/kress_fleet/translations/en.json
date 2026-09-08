@@ -1,17 +1,18 @@
 {
-  "title": "Kress Fleet",
+  "title": "Kress",
   "config": {
     "step": {
       "user": {
-        "title": "Connect to Kress Fleet",
-        "description": "Sign in with the same Kress account used for Fleet.",
+        "title": "Connect Kress",
+        "description": "Choose Kress Fleet or the normal Kress/Mission cloud and sign in with the matching Kress account.",
         "data": {
           "username": "Email",
-          "password": "Password"
+          "password": "Password",
+          "backend": "Cloud"
         }
       },
       "reauth_confirm": {
-        "title": "Reconnect Kress Fleet",
+        "title": "Reconnect Kress",
         "description": "Enter the current Kress password.",
         "data": {
           "password": "Password"
@@ -19,13 +20,13 @@
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to Kress Fleet",
-      "invalid_auth": "Invalid Kress credentials or Fleet session could not be created",
-      "no_mowers": "No Kress Fleet mower could be discovered"
+      "cannot_connect": "Could not connect to Kress",
+      "invalid_auth": "Invalid Kress credentials or session could not be created",
+      "no_mowers": "No Kress mower could be discovered"
     },
     "abort": {
-      "already_configured": "This Kress Fleet account is already configured",
-      "reauth_successful": "Kress Fleet was reauthenticated successfully"
+      "already_configured": "This Kress account is already configured for the selected cloud",
+      "reauth_successful": "Kress was reauthenticated successfully"
     }
   },
   "entity": {

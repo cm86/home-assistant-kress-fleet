@@ -1,3 +1,12 @@
+## 0.4.0-beta.1 - 2026-09-08
+
+- Start of the unified Kress integration architecture.
+- Existing Kress Fleet config entries remain backward compatible and continue to use the unchanged Fleet backend by default.
+- Legacy v1 Fleet config entries are migrated to the unified v2 schema with `backend=fleet`; existing device and entity unique IDs are left unchanged.
+- New setup flow can choose between **Kress Fleet** and **Kress / Mission**.
+- Added normal Kress cloud support through `pyworxcloud` 6.4.2.
+- Normal Kress accounts initially expose native mower control, battery, status and GPS location. Fleet-only features such as Live Map, RTK coverage and targeted Fleet zone mowing remain Fleet-only.
+
 # Changelog
 
 ## 0.3.20 - 2026-09-08

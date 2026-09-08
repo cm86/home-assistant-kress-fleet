@@ -3,7 +3,7 @@
 # MTrab/landroid_cloud and MTrab/pyworxcloud (GPL-3.0).
 # Kress Fleet modifications began on 2026-08-21; see NOTICE and LICENSE.
 
-"""Lawn mower platform for Kress Fleet."""
+"""Lawn mower platform for Kress."""
 
 from __future__ import annotations
 
@@ -16,7 +16,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .const import BACKEND_KRESS
 from .entity import KressFleetEntity
+from .normal_lawn_mower import KressNormalLawnMower
 
 
 async def async_setup_entry(
@@ -26,6 +28,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fleet mower entities."""
     coordinator = entry.runtime_data.coordinator
+    if getattr(entry.runtime_data, "backend", None) == BACKEND_KRESS:
+        async_add_entities(
+            KressNormalLawnMower(coordinator, serial) for serial in coordinator.data
+        )
+        return
     async_add_entities(
         KressFleetLawnMower(coordinator, mower_uuid)
         for mower_uuid in coordinator.data

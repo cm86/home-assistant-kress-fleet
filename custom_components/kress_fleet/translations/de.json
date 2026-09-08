@@ -1,17 +1,18 @@
 {
-  "title": "Kress Fleet",
+  "title": "Kress",
   "config": {
     "step": {
       "user": {
-        "title": "Mit Kress Fleet verbinden",
-        "description": "Melde dich mit demselben Kress-Konto an, das du für Fleet verwendest.",
+        "title": "Kress verbinden",
+        "description": "Wähle Kress Fleet oder die normale Kress/Mission Cloud und melde dich mit dem passenden Kress-Konto an.",
         "data": {
           "username": "E-Mail",
-          "password": "Passwort"
+          "password": "Passwort",
+          "backend": "Cloud"
         }
       },
       "reauth_confirm": {
-        "title": "Kress Fleet erneut verbinden",
+        "title": "Kress erneut verbinden",
         "description": "Gib das aktuelle Kress-Passwort ein.",
         "data": {
           "password": "Passwort"
@@ -19,13 +20,13 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung zu Kress Fleet fehlgeschlagen",
-      "invalid_auth": "Kress-Anmeldedaten ungültig oder Fleet-Sitzung konnte nicht erstellt werden",
-      "no_mowers": "Kein Kress-Fleet-Mäher gefunden"
+      "cannot_connect": "Verbindung zu Kress fehlgeschlagen",
+      "invalid_auth": "Kress-Anmeldedaten ungültig oder Sitzung konnte nicht erstellt werden",
+      "no_mowers": "Kein Kress-Mäher gefunden"
     },
     "abort": {
-      "already_configured": "Dieses Kress-Fleet-Konto ist bereits eingerichtet",
-      "reauth_successful": "Kress Fleet wurde erfolgreich erneut angemeldet"
+      "already_configured": "Dieses Kress-Konto ist für die ausgewählte Cloud bereits eingerichtet",
+      "reauth_successful": "Kress wurde erfolgreich erneut angemeldet"
     }
   },
   "entity": {

@@ -27,6 +27,51 @@ def normal_coordinates(device: Any) -> tuple[float, float] | None:
     return float(latitude), float(longitude)
 
 
+def normal_rtk_map_id(device: Any) -> str | None:
+    """Return the RTK map identifier reported by pyworxcloud."""
+    cfg = getattr(device, "raw_cfg", {}) or {}
+    if not isinstance(cfg, dict):
+        return None
+    rtk = cfg.get("rtk") or {}
+    if not isinstance(rtk, dict):
+        return None
+    value = rtk.get("map")
+    return None if value in (None, "") else str(value)
+
+
+def normal_rtk_position(device: Any) -> tuple[float, float] | None:
+    """Return live RTK coordinates, falling back to the normal GPS value."""
+    dat = getattr(device, "raw_dat", {}) or {}
+    if isinstance(dat, dict):
+        rtk = dat.get("rtk") or {}
+        if isinstance(rtk, dict):
+            pos = rtk.get("pos")
+            if isinstance(pos, (list, tuple)) and len(pos) >= 2:
+                try:
+                    return float(pos[0]), float(pos[1])
+                except (TypeError, ValueError):
+                    pass
+    return normal_coordinates(device)
+
+
+def normal_device_info(device: Any, serial: str) -> DeviceInfo:
+    """Build shared Home Assistant device information for normal Kress entities."""
+    info: dict[str, Any] = {
+        "identifiers": {(DOMAIN, serial)},
+        "name": str(getattr(device, "name", f"Kress {serial}")),
+        "manufacturer": "Kress",
+        "model": str(getattr(device, "model", "Kress")),
+        "serial_number": serial,
+    }
+    firmware = getattr(device, "firmware", None)
+    if isinstance(firmware, dict) and firmware.get("version") is not None:
+        info["sw_version"] = str(firmware["version"])
+    mac = getattr(device, "mac_address", None)
+    if mac and mac != "__UUID__":
+        info["connections"] = {(CONNECTION_NETWORK_MAC, str(mac))}
+    return DeviceInfo(**info)
+
+
 class KressNormalEntity(CoordinatorEntity[KressNormalCoordinator]):
     """Base entity for a mower from the normal Kress cloud."""
 
@@ -47,18 +92,4 @@ class KressNormalEntity(CoordinatorEntity[KressNormalCoordinator]):
 
     @property
     def device_info(self) -> DeviceInfo:
-        device = self.device
-        info: dict[str, Any] = {
-            "identifiers": {(DOMAIN, self.serial)},
-            "name": str(getattr(device, "name", f"Kress {self.serial}")),
-            "manufacturer": "Kress",
-            "model": str(getattr(device, "model", "Kress")),
-            "serial_number": self.serial,
-        }
-        firmware = getattr(device, "firmware", None)
-        if isinstance(firmware, dict) and firmware.get("version") is not None:
-            info["sw_version"] = str(firmware["version"])
-        mac = getattr(device, "mac_address", None)
-        if mac and mac != "__UUID__":
-            info["connections"] = {(CONNECTION_NETWORK_MAC, str(mac))}
-        return DeviceInfo(**info)
+        return normal_device_info(self.device, self.serial)

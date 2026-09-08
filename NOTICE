@@ -14,6 +14,12 @@ and code from the following GPL-3.0 projects:
   Copyright: MTrab and the respective pyWorxCloud contributors
   License: GNU General Public License v3.0 (GPL-3.0)
 
+  Worx Vision Cloud PLUS
+  https://github.com/SmartServicePL/worx_vision_cloud_plus_github
+  Copyright: SmartServicePL and contributors
+  License: MIT
+  Reference implementation for the private RTK map endpoint and SVG map rendering.
+
 The Kress Fleet adaptation is a modified work and is not an official release
 of either upstream project. Fleet-specific modifications began on 2026-08-21.
 

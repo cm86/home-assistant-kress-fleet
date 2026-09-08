@@ -9,6 +9,13 @@
 
 # Changelog
 
+## 0.4.0-beta.3 - 2026-09-08
+
+- Added first normal Kress / Mission RTK Live Map camera support.
+- Reads the private Kress/Worx RTK map endpoint when `cfg.rtk.map` is available.
+- Renders mowing zones, exclusions, station markers and the live RTK mower position.
+- Fleet Live Map behavior remains unchanged.
+
 ## 0.4.0-beta.2 - 2026-09-08
 
 - Added normal Kress / Mission diagnostic entities.

@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import BACKEND_KRESS, DOMAIN
 from .coordinator import KressFleetCoordinator
 from .entity import mower_device_info
 from .map_renderer import mower_map_diagnostics, render_mower_map, timestamp_local
@@ -77,8 +77,17 @@ async def async_setup_entry(
     entry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Fleet live-map cameras."""
-    coordinator = entry.runtime_data.coordinator
+    """Set up Fleet or normal Kress live-map cameras."""
+    runtime = entry.runtime_data
+    coordinator = runtime.coordinator
+    if getattr(runtime, "backend", None) == BACKEND_KRESS:
+        from .normal_camera import KressNormalMapCamera
+
+        async_add_entities(
+            KressNormalMapCamera(coordinator, serial) for serial in coordinator.data
+        )
+        return
+
     async_add_entities(
         KressFleetMapCamera(coordinator, mower_uuid) for mower_uuid in coordinator.data
     )

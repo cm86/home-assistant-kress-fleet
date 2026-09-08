@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/kress-fleet-logo.png" alt="Kress Fleet for Home Assistant project logo" width="220">
+</p>
+
 # Kress Fleet for Home Assistant
 
 > **Unofficial / experimental custom integration.** This project is not affiliated with,

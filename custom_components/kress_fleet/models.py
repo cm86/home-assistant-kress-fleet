@@ -341,7 +341,7 @@ def status_text(status_id: int | None) -> str:
         30: "returning",
         31: "zoning",
         32: "edge_cut",
-        33: "starting",
+        33: "searching_for_zone",
         34: "paused",
         103: "searching_for_zone",
         104: "returning",

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.17 - 2026-09-08
+
+### Fixed
+
+- Correct Fleet mower status ID `33` from **Starting** to **Searching for zone**, matching the mower/Fleet status semantics.
+- Use the German label **Zone suchen** for that state in the status sensor and Live Map header.
+
+### Added
+
+- Add the original project logo to the repository and show it in the README. The artwork is project-specific and does not reuse the official Kress logo.
+
+### Compatibility
+
+- No entity IDs, mower commands, MQTT topics, zone resolution or Live Map geometry change.
+- This is a presentation/status-mapping release on top of the working v0.3.16 RTK zone fix.
+
 ## 0.3.16 - 2026-09-01
 
 ### Fixed

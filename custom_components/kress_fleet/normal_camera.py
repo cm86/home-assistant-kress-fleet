@@ -95,6 +95,7 @@ class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
             "coverage_position": list(position) if position is not None else None,
         }
         attrs.update(normal_map_diagnostics(self._last_map_data))
+        attrs.update(self.coordinator.coverage_probe(self.serial))
         return {key: value for key, value in attrs.items() if value is not None}
 
     async def async_camera_image(

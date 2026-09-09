@@ -105,6 +105,15 @@
       "last_update": {
         "name": "Last update"
       },
+      "area_mowed_total": {
+        "name": "Total covered area"
+      },
+      "lawn_size": {
+        "name": "Lawn area"
+      },
+      "coverage_probe": {
+        "name": "Coverage probe"
+      },
       "map": {
         "name": "Map"
       },

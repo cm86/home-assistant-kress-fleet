@@ -9,6 +9,13 @@
 
 # Changelog
 
+
+## 0.4.0b11 - 2026-09-09
+
+- Probe normal Kress private product-item and activity-log data for cloud coverage/statistics fields.
+- Expose cumulative cloud `area_mowed`, lawn size and compact coverage diagnostics for Kress / Mission.
+- Refresh private cloud statistics conservatively; Fleet behavior remains unchanged.
+
 ## 0.4.0-beta.10 - 2026-09-09
 
 - Use the native Kress RTK `summary.type` field for zone classification (`2` = mowing zone, `1` = drive-through corridor), fixing mowing zones without cutting metadata being rendered yellow.

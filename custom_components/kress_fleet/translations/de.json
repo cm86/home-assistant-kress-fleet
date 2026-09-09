@@ -105,6 +105,15 @@
       "last_update": {
         "name": "Letzte Aktualisierung"
       },
+      "area_mowed_total": {
+        "name": "Gemähte Fläche gesamt"
+      },
+      "lawn_size": {
+        "name": "Rasenfläche"
+      },
+      "coverage_probe": {
+        "name": "Coverage-Diagnose"
+      },
       "map": {
         "name": "Karte"
       },

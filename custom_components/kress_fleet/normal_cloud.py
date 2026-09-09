@@ -21,6 +21,8 @@ from pyworxcloud.utils.requests import AGET, HEADERS
 from .const import DOMAIN
 
 RTK_MAP_CACHE_TTL = timedelta(minutes=30)
+PRODUCT_ITEM_CACHE_TTL = timedelta(minutes=15)
+ACTIVITY_LOG_CACHE_TTL = timedelta(hours=1)
 RTK_MOWING_TRAIL_MAX_POINTS = 5000
 RTK_TRAIL_STORAGE_VERSION = 1
 RTK_TRAIL_SAVE_DELAY = 60
@@ -103,10 +105,13 @@ class KressNormalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             logger=_LOGGER,
             name=f"{DOMAIN}_normal",
             config_entry=entry,
+            update_interval=PRODUCT_ITEM_CACHE_TTL,
         )
         self.cloud = cloud
         self.data = normal_devices(cloud)
         self._rtk_map_cache: dict[str, tuple[datetime, dict[str, Any]]] = {}
+        self._product_item_cache: dict[str, tuple[datetime, dict[str, Any]]] = {}
+        self._activity_log_cache: dict[str, tuple[datetime, Any]] = {}
         self._rtk_mowing_trails: dict[
             str, deque[tuple[datetime, float, float]]
         ] = {}
@@ -121,7 +126,23 @@ class KressNormalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_prepare(self) -> None:
         """Restore today's RTK trail before Home Assistant creates entities."""
         await self._load_rtk_mowing_trails()
+        await self._refresh_private_cloud_data(self.data, force_product=True)
         self._remember_mowing_positions(self.data)
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        """Refresh private Kress REST data used for coverage diagnostics."""
+        devices = normal_devices(self.cloud)
+        await self._refresh_private_cloud_data(devices, force_product=True)
+        self._remember_mowing_positions(devices)
+        return devices
+
+    async def _refresh_private_cloud_data(
+        self, devices: dict[str, Any], *, force_product: bool = False
+    ) -> None:
+        """Refresh product statistics and activity log without blocking Fleet."""
+        for serial in devices:
+            await self.async_get_product_item(serial, force=force_product)
+            await self.async_get_activity_log(serial)
 
     def bind_callbacks(self) -> None:
         """Refresh Home Assistant entities whenever pyworxcloud receives data."""
@@ -255,6 +276,188 @@ class KressNormalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Persist current Mission RTK trails immediately during unload."""
         self._rtk_trail_save_pending = False
         await self._rtk_trail_store.async_save(self._rtk_trail_store_data())
+
+    async def _api_get(self, path: str) -> Any:
+        """Fetch a private Kress API path using pyworxcloud's token/session."""
+        api = getattr(self.cloud, "_api", None)
+        if api is None:
+            return None
+        try:
+            await api.check_token()
+            endpoint = getattr(getattr(api, "cloud", None), "ENDPOINT", None)
+            if endpoint is None:
+                endpoint = getattr(
+                    getattr(self.cloud, "_cloud", None), "ENDPOINT", None
+                )
+            if endpoint is None:
+                return None
+            return await AGET(
+                f"https://{endpoint}{path}",
+                HEADERS(api.access_token),
+                session=await api._ensure_session(),
+            )
+        except Exception:  # noqa: BLE001 - private upstream API is best effort
+            _LOGGER.debug("Could not fetch Kress API path %s", path, exc_info=True)
+            return None
+
+    async def async_get_product_item(
+        self, serial: str, *, force: bool = False
+    ) -> dict[str, Any] | None:
+        """Fetch the private product-item record containing cloud statistics."""
+        now = datetime.now(UTC)
+        cached = self._product_item_cache.get(serial)
+        if (
+            cached is not None
+            and not force
+            and now - cached[0] < PRODUCT_ITEM_CACHE_TTL
+        ):
+            return cached[1]
+        value = await self._api_get(f"/api/v2/product-items/{serial}")
+        if isinstance(value, dict):
+            self._product_item_cache[serial] = (now, value)
+            return value
+        return cached[1] if cached is not None else None
+
+    async def async_get_activity_log(
+        self, serial: str, *, force: bool = False
+    ) -> Any:
+        """Fetch the normal Kress activity log for coverage/API probing."""
+        now = datetime.now(UTC)
+        cached = self._activity_log_cache.get(serial)
+        if (
+            cached is not None
+            and not force
+            and now - cached[0] < ACTIVITY_LOG_CACHE_TTL
+        ):
+            return cached[1]
+        value = await self._api_get(f"/api/v2/product-items/{serial}/activity-log")
+        if isinstance(value, (dict, list)):
+            self._activity_log_cache[serial] = (now, value)
+            return value
+        return cached[1] if cached is not None else None
+
+    def product_item_data(self, serial: str) -> dict[str, Any] | None:
+        """Return cached product-item data for one mower."""
+        cached = self._product_item_cache.get(serial)
+        return None if cached is None else cached[1]
+
+    def product_item_updated_at(self, serial: str) -> datetime | None:
+        """Return when private product statistics were last fetched."""
+        cached = self._product_item_cache.get(serial)
+        return None if cached is None else cached[0]
+
+    def activity_log_data(self, serial: str) -> Any:
+        """Return cached Kress activity-log data for one mower."""
+        cached = self._activity_log_cache.get(serial)
+        return None if cached is None else cached[1]
+
+    def activity_log_updated_at(self, serial: str) -> datetime | None:
+        """Return when the activity log was last fetched."""
+        cached = self._activity_log_cache.get(serial)
+        return None if cached is None else cached[0]
+
+    @staticmethod
+    def _probe_preview(value: Any) -> Any:
+        """Return a compact, HA-safe preview without dumping large payloads."""
+        if isinstance(value, dict):
+            return f"dict[{len(value)}]"
+        if isinstance(value, (list, tuple)):
+            return f"list[{len(value)}]"
+        if isinstance(value, str):
+            return value if len(value) <= 80 else value[:77] + "..."
+        if value is None or isinstance(value, (bool, int, float)):
+            return value
+        return type(value).__name__
+
+    @classmethod
+    def _probe_candidates(cls, source: Any, prefix: str) -> list[str]:
+        """Return candidate field paths that may describe mowing/coverage."""
+        keywords = (
+            "area",
+            "cover",
+            "mow",
+            "work",
+            "progress",
+            "trail",
+            "track",
+            "route",
+            "path",
+            "rtk",
+            "map",
+            "task",
+            "history",
+        )
+        sensitive = ("token", "password", "email", "user_id")
+        results: list[str] = []
+
+        def walk(value: Any, path: str, depth: int) -> None:
+            if depth > 5 or len(results) >= 80:
+                return
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    key_text = str(key)
+                    child_path = f"{path}.{key_text}" if path else key_text
+                    folded = child_path.casefold()
+                    if any(secret in folded for secret in sensitive):
+                        continue
+                    if any(keyword in folded for keyword in keywords):
+                        results.append(f"{child_path}={cls._probe_preview(child)}")
+                    walk(child, child_path, depth + 1)
+            elif isinstance(value, list) and depth < 3:
+                for index, child in enumerate(value[:5]):
+                    walk(child, f"{path}[{index}]", depth + 1)
+
+        walk(source, prefix, 0)
+        return results
+
+    def coverage_probe(self, serial: str) -> dict[str, Any]:
+        """Return compact cloud/MQTT diagnostics for coverage reverse engineering."""
+        device = self.data.get(serial)
+        product = self.product_item_data(serial) or {}
+        activity = self.activity_log_data(serial)
+        raw_cfg = getattr(device, "raw_cfg", {}) if device is not None else {}
+        raw_dat = getattr(device, "raw_dat", {}) if device is not None else {}
+        raw_data = getattr(device, "raw_data", {}) if device is not None else {}
+        statistics = getattr(device, "statistics", {}) if device is not None else {}
+        rtk_cfg = raw_cfg.get("rtk", {}) if isinstance(raw_cfg, dict) else {}
+        rtk_dat = raw_dat.get("rtk", {}) if isinstance(raw_dat, dict) else {}
+
+        activity_count = len(activity) if isinstance(activity, list) else None
+        activity_top_keys: list[str] = []
+        if isinstance(activity, dict):
+            items = activity.get("items")
+            activity_count = len(items) if isinstance(items, list) else len(activity)
+            activity_top_keys = sorted(str(key) for key in activity)
+        elif isinstance(activity, list) and activity and isinstance(activity[0], dict):
+            activity_top_keys = sorted(str(key) for key in activity[0])
+
+        candidates = []
+        candidates.extend(self._probe_candidates(product, "product_item"))
+        candidates.extend(self._probe_candidates(statistics, "statistics"))
+        candidates.extend(self._probe_candidates(raw_cfg, "raw_cfg"))
+        candidates.extend(self._probe_candidates(raw_dat, "raw_dat"))
+        candidates.extend(self._probe_candidates(raw_data, "raw_data"))
+        candidates.extend(self._probe_candidates(activity, "activity_log"))
+
+        return {
+            "cloud_area_mowed_total": product.get("area_mowed"),
+            "cloud_lawn_size": product.get("lawn_size"),
+            "cloud_lawn_perimeter": product.get("lawn_perimeter"),
+            "cloud_product_item_updated_at": self.product_item_updated_at(serial),
+            "cloud_product_item_keys": sorted(product),
+            "activity_log_count": activity_count,
+            "activity_log_updated_at": self.activity_log_updated_at(serial),
+            "activity_log_top_keys": activity_top_keys,
+            "statistics_keys": (
+                sorted(statistics) if isinstance(statistics, dict) else []
+            ),
+            "raw_data_keys": sorted(raw_data) if isinstance(raw_data, dict) else [],
+            "raw_cfg_keys": sorted(raw_cfg) if isinstance(raw_cfg, dict) else [],
+            "raw_dat_keys": sorted(raw_dat) if isinstance(raw_dat, dict) else [],
+            "raw_rtk_cfg_keys": sorted(rtk_cfg) if isinstance(rtk_cfg, dict) else [],
+            "raw_rtk_dat_keys": sorted(rtk_dat) if isinstance(rtk_dat, dict) else [],
+            "coverage_probe_candidates": candidates[:80],
+        }
 
     async def async_get_rtk_map(
         self, map_id: str | None, *, force: bool = False

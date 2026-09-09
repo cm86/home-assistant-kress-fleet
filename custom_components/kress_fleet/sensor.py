@@ -32,11 +32,14 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import BACKEND_KRESS
 from .entity import KressFleetEntity
 from .normal_sensor import (
+    KressNormalAreaMowedTotalSensor,
     KressNormalBatterySensor,
     KressNormalErrorDescriptionSensor,
     KressNormalErrorSensor,
     KressNormalFirmwareSensor,
+    KressNormalCoverageProbeSensor,
     KressNormalLastUpdateSensor,
+    KressNormalLawnSizeSensor,
     KressNormalRssiSensor,
     KressNormalStatusSensor,
 )
@@ -200,6 +203,9 @@ async def async_setup_entry(
             entities.append(KressNormalRssiSensor(coordinator, serial))
             entities.append(KressNormalFirmwareSensor(coordinator, serial))
             entities.append(KressNormalLastUpdateSensor(coordinator, serial))
+            entities.append(KressNormalAreaMowedTotalSensor(coordinator, serial))
+            entities.append(KressNormalLawnSizeSensor(coordinator, serial))
+            entities.append(KressNormalCoverageProbeSensor(coordinator, serial))
         async_add_entities(entities)
         return
     async_add_entities(

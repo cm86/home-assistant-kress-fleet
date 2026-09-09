@@ -6,8 +6,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import PERCENTAGE, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import (
+    PERCENTAGE,
+    SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+    UnitOfArea,
+)
 from homeassistant.helpers.entity import EntityCategory
 
 from .normal_entity import KressNormalEntity
@@ -126,3 +134,77 @@ class KressNormalLastUpdateSensor(KressNormalEntity, SensorEntity):
     @property
     def native_value(self):
         return getattr(self.device, "updated", None)
+
+
+class KressNormalAreaMowedTotalSensor(KressNormalEntity, SensorEntity):
+    """Cumulative covered area reported by the normal Kress cloud."""
+
+    _attr_translation_key = "area_mowed_total"
+    _attr_device_class = SensorDeviceClass.AREA
+    _attr_native_unit_of_measurement = UnitOfArea.SQUARE_METERS
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_icon = "mdi:grass"
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "area_mowed_total")
+
+    @property
+    def native_value(self):
+        product = self.coordinator.product_item_data(self.serial) or {}
+        value = product.get("area_mowed")
+        try:
+            return round(float(value), 2)
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "source": "kress_cloud_product_item",
+            "cloud_data_updated_at": self.coordinator.product_item_updated_at(
+                self.serial
+            ),
+        }
+
+
+class KressNormalLawnSizeSensor(KressNormalEntity, SensorEntity):
+    """Configured lawn size reported by the normal Kress cloud."""
+
+    _attr_translation_key = "lawn_size"
+    _attr_device_class = SensorDeviceClass.AREA
+    _attr_native_unit_of_measurement = UnitOfArea.SQUARE_METERS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:set-square"
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "lawn_size")
+
+    @property
+    def native_value(self):
+        product = self.coordinator.product_item_data(self.serial) or {}
+        value = product.get("lawn_size")
+        try:
+            return round(float(value), 2)
+        except (TypeError, ValueError):
+            return None
+
+
+class KressNormalCoverageProbeSensor(KressNormalEntity, SensorEntity):
+    """Diagnostic inventory of Kress cloud/MQTT coverage-related fields."""
+
+    _attr_translation_key = "coverage_probe"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:database-search"
+
+    def __init__(self, coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "coverage_probe")
+
+    @property
+    def native_value(self):
+        return len(self.coordinator.coverage_probe(self.serial).get(
+            "coverage_probe_candidates", []
+        ))
+
+    @property
+    def extra_state_attributes(self):
+        return self.coordinator.coverage_probe(self.serial)

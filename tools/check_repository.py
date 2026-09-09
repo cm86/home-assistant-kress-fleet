@@ -23,7 +23,7 @@ manifest = json.loads(manifest_path.read_text())
 if manifest.get("domain") != "kress_fleet":
     errors.append("manifest domain is not kress_fleet")
 version = str(manifest.get("version", ""))
-if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", version):
+if not re.fullmatch(r"\d+\.\d+\.\d+(?:b\d+|[-+][0-9A-Za-z.-]+)?", version):
     errors.append(f"manifest version is not valid semantic versioning: {version!r}")
 
 # Catch common pasted-secret shapes without flagging documentation that merely

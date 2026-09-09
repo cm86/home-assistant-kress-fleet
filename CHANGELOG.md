@@ -9,6 +9,13 @@
 
 # Changelog
 
+## 0.4.0-beta.10 - 2026-09-09
+
+- Use the native Kress RTK `summary.type` field for zone classification (`2` = mowing zone, `1` = drive-through corridor), fixing mowing zones without cutting metadata being rendered yellow.
+- Improve local daily coverage rendering for sparse RTK samples by connecting plausible samples only inside the same native mowing zone.
+- Render isolated RTK mowing samples as cutting-width coverage dots instead of dropping them.
+- Fleet behavior remains unchanged.
+
 ## 0.4.0-beta.9 - 2026-09-09
 
 - Expose raw Kress / Mission RTK zone metadata on the Live Map camera for zone/path classification debugging.

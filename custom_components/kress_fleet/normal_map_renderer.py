@@ -16,6 +16,8 @@ SVG_HEADER = 96
 SVG_PADDING = 34
 TRAIL_MAX_GAP = timedelta(minutes=5)
 TRAIL_MAX_SEGMENT_DISTANCE_M = 35.0
+TRAIL_MAX_SEGMENT_SPEED_M_S = 1.2
+TRAIL_SEGMENT_DISTANCE_SLACK_M = 8.0
 TRAIL_MIN_POINT_DISTANCE_M = 0.25
 TRAIL_MAP_MARGIN_M = 12.0
 DEFAULT_CUTTING_WIDTH_M = 0.20
@@ -68,12 +70,30 @@ def _contour_points(contour: dict[str, Any]) -> list[tuple[float, float]]:
     return [pair for pair in (_pair(point) for point in points) if pair is not None]
 
 
-def _is_mowing_zone(zone: dict[str, Any]) -> bool:
-    """Return True for zones that carry Kress cutting metadata.
+def _zone_type(zone: dict[str, Any]) -> int | None:
+    """Return the native Kress RTK zone type when present."""
+    summary = zone.get("summary") or {}
+    if not isinstance(summary, dict):
+        return None
+    try:
+        return int(summary.get("type"))
+    except (TypeError, ValueError):
+        return None
 
-    Kress uses map zones without cutting metadata as drive-through corridors.
-    Those are the yellow/orange paths shown by the app and Fleet renderer.
+
+def _is_mowing_zone(zone: dict[str, Any]) -> bool:
+    """Return True for native Kress mowing zones.
+
+    Observed Kress RTK map payloads use summary.type 2 for mowing zones and
+    summary.type 1 for drive-through corridors. Cutting metadata is only a
+    fallback for older/incomplete payloads.
     """
+    zone_type = _zone_type(zone)
+    if zone_type == 2:
+        return True
+    if zone_type == 1:
+        return False
+
     metadata = zone.get("metadata") or {}
     if not isinstance(metadata, dict):
         return False
@@ -218,6 +238,53 @@ def _distance_m(first: tuple[float, float], second: tuple[float, float]) -> floa
     return hypot(x_m, y_m)
 
 
+def _point_in_ring(
+    point: tuple[float, float], ring: list[tuple[float, float]]
+) -> bool:
+    """Return whether a latitude/longitude point is inside a polygon ring."""
+    if len(ring) < 3:
+        return False
+    latitude, longitude = point
+    inside = False
+    previous = ring[-1]
+    for current in ring:
+        lat1, lon1 = previous
+        lat2, lon2 = current
+        if (lat1 > latitude) != (lat2 > latitude):
+            crossing_lon = (lon2 - lon1) * (latitude - lat1) / (lat2 - lat1) + lon1
+            if longitude < crossing_lon:
+                inside = not inside
+        previous = current
+    return inside
+
+
+def _point_in_contour(point: tuple[float, float], contour: dict[str, Any]) -> bool:
+    outer = _contour_points(contour)
+    if not _point_in_ring(point, outer):
+        return False
+    for child in contour.get("children") or []:
+        if isinstance(child, dict) and _point_in_ring(point, _contour_points(child)):
+            return False
+    return True
+
+
+def _mowing_zone_key(
+    map_data: dict[str, Any], point: tuple[float, float]
+) -> tuple[int, int] | None:
+    """Return the native mowing-zone identity containing a live RTK point."""
+    boundaries = _nested(map_data, "layers", "boundaries", default=[]) or []
+    for boundary_index, boundary in enumerate(boundaries):
+        if not isinstance(boundary, dict):
+            continue
+        for zone_index, zone in enumerate(boundary.get("zones") or []):
+            if not isinstance(zone, dict) or not _is_mowing_zone(zone):
+                continue
+            for contour in zone.get("contours") or []:
+                if isinstance(contour, dict) and _point_in_contour(point, contour):
+                    return boundary_index, zone_index
+    return None
+
+
 def _coordinate_bounds(
     points: list[tuple[float, float]],
 ) -> tuple[float, float, float, float] | None:
@@ -249,6 +316,7 @@ def _trail_segments(
     map_data: dict[str, Any],
     trail: list[tuple[datetime, float, float]] | None,
 ) -> list[list[tuple[datetime, float, float]]]:
+    """Build visible same-zone mowing segments from sparse RTK samples."""
     if not trail:
         return []
 
@@ -257,9 +325,10 @@ def _trail_segments(
     current: list[tuple[datetime, float, float]] = []
     previous_time: datetime | None = None
     previous_point: tuple[float, float] | None = None
+    previous_zone: tuple[int, int] | None = None
 
     def flush() -> None:
-        if len(current) > 1:
+        if current:
             segments.append(list(current))
         current.clear()
 
@@ -269,19 +338,37 @@ def _trail_segments(
             flush()
             previous_time = None
             previous_point = None
+            previous_zone = None
             continue
+
+        zone = _mowing_zone_key(map_data, point)
+        if zone is None:
+            flush()
+            previous_time = None
+            previous_point = None
+            previous_zone = None
+            continue
+
         if previous_point is not None:
             distance = _distance_m(previous_point, point)
             if distance < TRAIL_MIN_POINT_DISTANCE_M:
                 continue
+
+            elapsed = (timestamp - previous_time).total_seconds() if previous_time else 0.0
+            allowed_distance = max(
+                TRAIL_MAX_SEGMENT_DISTANCE_M,
+                elapsed * TRAIL_MAX_SEGMENT_SPEED_M_S + TRAIL_SEGMENT_DISTANCE_SLACK_M,
+            )
             if (
                 previous_time is not None
                 and timestamp - previous_time > TRAIL_MAX_GAP
-            ) or distance > TRAIL_MAX_SEGMENT_DISTANCE_M:
+            ) or distance > allowed_distance or zone != previous_zone:
                 flush()
+
         current.append((timestamp, latitude, longitude))
         previous_time = timestamp
         previous_point = point
+        previous_zone = zone
 
     flush()
     return segments
@@ -375,6 +462,7 @@ def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
         "marker_count": len(markers) if isinstance(markers, list) else 0,
         "map_layers": sorted(layers) if isinstance(layers, dict) else [],
         "map_zones": zone_debug,
+        "zone_classifier": "summary.type (2=mowing, 1=path)",
         "map_zones_debug_note": "raw excludes contour geometry",
     }
 
@@ -491,11 +579,22 @@ def render_normal_rtk_map(
             )
 
     # Today's local RTK coverage: same darker green used by Fleet coverage.
+    # Sparse Kress RTK samples are connected only inside the same native
+    # mowing zone; isolated samples still render as one cutting-width dot.
     if clip_def:
         for segment in trail_segments:
             segment_points = [
                 (latitude, longitude) for _, latitude, longitude in segment
             ]
+            if len(segment_points) == 1:
+                x, y = project(segment_points[0])
+                parts.append(
+                    '<g clip-path="url(#mowed-clip)">'
+                    f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{swath_width_px / 2:.2f}" '
+                    'fill="#08AA57" fill-opacity="0.88"/>'
+                    '</g>'
+                )
+                continue
             path = _open_path(segment_points, project)
             if path:
                 parts.append(

@@ -83,7 +83,8 @@ class KressNormalMapCamera(CoordinatorEntity[KressNormalCoordinator], Camera):
         coverage_from, coverage_to = self.coordinator.rtk_coverage_period()
         attrs = {
             "map_id": normal_rtk_map_id(self.device),
-            "coverage_source": "local_rtk_mowing_trail",
+            "coverage_source": "local_rtk_daily_trail",
+            "coverage_persisted": True,
             "coverage_points": len(trail),
             "coverage_days": 1,
             "coverage_from": coverage_from.isoformat(),

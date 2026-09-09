@@ -9,6 +9,15 @@
 
 # Changelog
 
+## 0.4.0-beta.8 - 2026-09-09
+
+- Render Kress / Mission drive-through corridors in the same yellow/orange palette used by Fleet.
+- Distinguish mowing zones from transit/path zones using RTK map cutting metadata and keep coverage clipped to mowing zones only.
+- Persist the current day's local RTK mowing trail in Home Assistant storage so Mission coverage survives restarts and still resets at local midnight.
+- Expose mowing/path zone counts and mark the Mission daily RTK coverage as persisted.
+- The observed Kress map payload does not expose a server-side coverage layer, so the live map keeps using the RTK-derived daily trail rather than inventing unsupported cloud geometry.
+- Fleet behavior remains unchanged.
+
 ## 0.4.0-beta.7 - 2026-09-08
 
 - Changed normal Kress / Mission RTK coverage period from a rolling six-hour window to the current local calendar day, matching Fleet's default one-day coverage period.

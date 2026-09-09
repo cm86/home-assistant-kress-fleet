@@ -338,6 +338,7 @@ async def _async_setup_normal_entry(hass: HomeAssistant, entry: ConfigEntry) -> 
         raise ConfigEntryNotReady("No normal Kress mower found")
 
     coordinator = KressNormalCoordinator(hass, entry, cloud)
+    await coordinator.async_prepare()
     coordinator.bind_callbacks()
     coordinator.async_set_updated_data(dict(coordinator.data))
     entry.runtime_data = KressNormalRuntimeData(cloud, coordinator)
@@ -364,6 +365,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if getattr(runtime, "backend", BACKEND_FLEET) == BACKEND_KRESS:
         unloaded = await hass.config_entries.async_unload_platforms(entry, NORMAL_PLATFORMS)
         if unloaded:
+            await runtime.coordinator.async_save_mowing_trails()
             await runtime.cloud.disconnect()
         return unloaded
     return await _async_unload_fleet_entry(hass, entry)

@@ -68,6 +68,18 @@ def _contour_points(contour: dict[str, Any]) -> list[tuple[float, float]]:
     return [pair for pair in (_pair(point) for point in points) if pair is not None]
 
 
+def _is_mowing_zone(zone: dict[str, Any]) -> bool:
+    """Return True for zones that carry Kress cutting metadata.
+
+    Kress uses map zones without cutting metadata as drive-through corridors.
+    Those are the yellow/orange paths shown by the app and Fleet renderer.
+    """
+    metadata = zone.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        return False
+    return any(key in metadata for key in ("cut_type", "cut_direction"))
+
+
 def _iter_contours(
     map_data: dict[str, Any],
 ) -> Iterable[tuple[str, dict[str, Any]]]:
@@ -77,9 +89,10 @@ def _iter_contours(
         for zone in boundary.get("zones") or []:
             if not isinstance(zone, dict):
                 continue
+            layer = "zone" if _is_mowing_zone(zone) else "path"
             for contour in zone.get("contours") or []:
                 if isinstance(contour, dict):
-                    yield "zone", contour
+                    yield layer, contour
 
     for exclusion in _nested(map_data, "layers", "exclusions", default=[]) or []:
         if not isinstance(exclusion, dict):
@@ -310,9 +323,19 @@ def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(map_data, dict):
         return {}
     zones = 0
+    mowing_zones = 0
+    path_zones = 0
     for boundary in _nested(map_data, "layers", "boundaries", default=[]) or []:
-        if isinstance(boundary, dict):
-            zones += sum(isinstance(zone, dict) for zone in boundary.get("zones") or [])
+        if not isinstance(boundary, dict):
+            continue
+        for zone in boundary.get("zones") or []:
+            if not isinstance(zone, dict):
+                continue
+            zones += 1
+            if _is_mowing_zone(zone):
+                mowing_zones += 1
+            else:
+                path_zones += 1
     exclusions = _nested(map_data, "layers", "exclusions", default=[]) or []
     markers = _nested(map_data, "layers", "markers", default=[]) or []
     layers = map_data.get("layers")
@@ -322,6 +345,8 @@ def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
         "active": map_data.get("active"),
         "rtk_provider": map_data.get("rtk_provider"),
         "zone_count": zones,
+        "mowing_zone_count": mowing_zones,
+        "path_zone_count": path_zones,
         "exclusion_count": len(exclusions) if isinstance(exclusions, list) else 0,
         "marker_count": len(markers) if isinstance(markers, list) else 0,
         "map_layers": sorted(layers) if isinstance(layers, dict) else [],
@@ -420,18 +445,26 @@ def render_normal_rtk_map(
     if clip_def:
         parts.append(f"<defs>{clip_def}</defs>")
 
-    # Base lawn/zones: same palette as Fleet's not-mowed area.
+    # Base work map: mowing zones green, drive-through corridors yellow/orange,
+    # exactly matching the Fleet renderer palette.
     for layer, contour in _iter_contours(map_data):
-        if layer != "zone":
+        if layer not in {"zone", "path"}:
             continue
         path = _compound_zone_path(contour, project)
-        if path:
+        if not path:
+            continue
+        if layer == "zone":
             parts.append(
                 f'<path d="{path}" fill="#9BE2B9" fill-opacity="0.93" '
                 'stroke="#159657" stroke-width="2.4" fill-rule="evenodd"/>'
             )
+        else:
+            parts.append(
+                f'<path d="{path}" fill="#FFB33B" fill-opacity="0.70" '
+                'stroke="#E58A00" stroke-width="1.5" fill-rule="evenodd"/>'
+            )
 
-    # Recent local coverage: same darker green used by Fleet coverage.
+    # Today's local RTK coverage: same darker green used by Fleet coverage.
     if clip_def:
         for segment in trail_segments:
             segment_points = [

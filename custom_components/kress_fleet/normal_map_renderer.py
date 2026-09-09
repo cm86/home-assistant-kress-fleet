@@ -319,19 +319,43 @@ def _placeholder(message: str) -> str:
     )
 
 
+def _zone_debug_entry(
+    boundary: dict[str, Any],
+    zone: dict[str, Any],
+    boundary_index: int,
+    zone_index: int,
+) -> dict[str, Any]:
+    """Return raw Kress zone metadata without the large contour geometry."""
+    raw_zone = {key: value for key, value in zone.items() if key != "contours"}
+    raw_boundary = {key: value for key, value in boundary.items() if key != "zones"}
+    return {
+        "boundary_index": boundary_index,
+        "zone_index": zone_index,
+        "detected_as": "mowing" if _is_mowing_zone(zone) else "path",
+        "contour_count": len(zone.get("contours") or []),
+        "raw": raw_zone,
+        "boundary_raw": raw_boundary,
+    }
+
+
 def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(map_data, dict):
         return {}
     zones = 0
     mowing_zones = 0
     path_zones = 0
-    for boundary in _nested(map_data, "layers", "boundaries", default=[]) or []:
+    zone_debug: list[dict[str, Any]] = []
+    boundaries = _nested(map_data, "layers", "boundaries", default=[]) or []
+    for boundary_index, boundary in enumerate(boundaries):
         if not isinstance(boundary, dict):
             continue
-        for zone in boundary.get("zones") or []:
+        for zone_index, zone in enumerate(boundary.get("zones") or []):
             if not isinstance(zone, dict):
                 continue
             zones += 1
+            zone_debug.append(
+                _zone_debug_entry(boundary, zone, boundary_index, zone_index)
+            )
             if _is_mowing_zone(zone):
                 mowing_zones += 1
             else:
@@ -350,6 +374,8 @@ def normal_map_diagnostics(map_data: dict[str, Any] | None) -> dict[str, Any]:
         "exclusion_count": len(exclusions) if isinstance(exclusions, list) else 0,
         "marker_count": len(markers) if isinstance(markers, list) else 0,
         "map_layers": sorted(layers) if isinstance(layers, dict) else [],
+        "map_zones": zone_debug,
+        "map_zones_debug_note": "raw excludes contour geometry",
     }
 
 

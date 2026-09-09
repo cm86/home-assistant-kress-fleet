@@ -9,6 +9,12 @@
 
 # Changelog
 
+## 0.4.0-beta.9 - 2026-09-09
+
+- Expose raw Kress / Mission RTK zone metadata on the Live Map camera for zone/path classification debugging.
+- Include the current classifier result, boundary/zone indexes and contour counts while omitting the large contour coordinate arrays.
+- No map classification behavior changes in this beta; Fleet behavior remains unchanged.
+
 ## 0.4.0-beta.8 - 2026-09-09
 
 - Render Kress / Mission drive-through corridors in the same yellow/orange palette used by Fleet.

@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "kress_fleet"
 NAME: Final = "Kress Fleet"
-VERSION: Final = "0.3.22"
+VERSION: Final = "0.3.24"
 
 PLATFORMS: Final = [
     Platform.LAWN_MOWER,
@@ -31,7 +31,7 @@ SSO_BASE_URL: Final = "https://id.kress.com"
 # Fleet OAuth client/state/PKCE values are deliberately NOT hard-coded.
 # The integration starts at Fleet /login and lets Fleet generate them.
 
-API_VERSION: Final = "2026-06-04"
+API_VERSION: Final = "2026-07-21"
 APP_VERSION: Final = "SNAPSHOT"
 BRAND_PREFIX: Final = "KR"
 

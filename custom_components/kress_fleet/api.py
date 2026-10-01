@@ -21,6 +21,9 @@ import aiohttp
 from yarl import URL
 
 from .const import (
+    API_VERSION,
+    APP_VERSION,
+    BRAND_PREFIX,
     FLEET_BASE_URL,
     SSO_BASE_URL,
 )
@@ -357,12 +360,28 @@ class KressFleetApi:
             return unquote(cookie.value)
         return self._csrf_meta
 
-    def _headers(self) -> dict[str, str]:
+    def _headers(self, *, coverage_user_id: int | None = None) -> dict[str, str]:
         headers = {
             "Accept": "*/*",
             "Content-Type": "application/json;charset=utf-8",
             "Referer": f"{FLEET_BASE_URL}/splash",
         }
+
+        if coverage_user_id is not None:
+            # Match the current Fleet web client for the coverage endpoint.
+            # Coverage still requires the Fleet API/app/brand identifiers,
+            # while /api/actor rejects those headers with HTTP 406.
+            headers.update(
+                {
+                    "Content-Type": "application/json",
+                    "Origin": FLEET_BASE_URL,
+                    "Referer": f"{FLEET_BASE_URL}/users/{coverage_user_id}/locations",
+                    "x-api-version": API_VERSION,
+                    "x-app-version": APP_VERSION,
+                    "x-brand-prefix": BRAND_PREFIX,
+                }
+            )
+
         if xsrf := self._xsrf_token():
             headers["x-xsrf-token"] = xsrf
         return headers
@@ -375,13 +394,16 @@ class KressFleetApi:
         json_body: Any = None,
         has_json_body: bool = False,
         retry_auth: bool = True,
+        coverage_user_id: int | None = None,
     ) -> Any:
         if retry_auth:
             await self.async_ensure_auth()
 
         async def perform() -> tuple[int, Any]:
             kwargs: dict[str, Any] = {
-                "headers": self._headers(),
+                "headers": self._headers(
+                    coverage_user_id=coverage_user_id
+                ),
                 "timeout": aiohttp.ClientTimeout(total=30),
             }
             if has_json_body:
@@ -810,6 +832,7 @@ class KressFleetApi:
             f"/api/users/{mower.user_id}/locations/{mower.location_id}/maps/{mower.map_id}/coverage",
             json_body={"from": from_value},
             has_json_body=True,
+            coverage_user_id=mower.user_id,
         )
         data = _unwrap(body)
         if not isinstance(data, dict):

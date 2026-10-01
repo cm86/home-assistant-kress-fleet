@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.24 - 2026-10-01
+
+- Fix Fleet coverage requests for the current Kress Fleet web API.
+- Update the Fleet API version to 2026-07-21.
+- Send API/app/brand, Origin and location Referer headers only for coverage requests.
+- Keep the HTTP 406 fix for `/api/actor` unchanged.
+- No changes to the Fleet map renderer or mower behavior.
+
+
 ## 0.3.22 - 2026-10-01
 
 - Accept config entry version 2 created by earlier Kress Fleet prereleases.

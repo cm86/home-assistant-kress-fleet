@@ -26,7 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 class KressFleetConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle Kress Fleet configuration."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(self, user_input=None):
         """Set up Kress Fleet with email and password."""

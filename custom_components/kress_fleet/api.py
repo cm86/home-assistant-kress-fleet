@@ -21,9 +21,6 @@ import aiohttp
 from yarl import URL
 
 from .const import (
-    API_VERSION,
-    APP_VERSION,
-    BRAND_PREFIX,
     FLEET_BASE_URL,
     SSO_BASE_URL,
 )
@@ -362,11 +359,9 @@ class KressFleetApi:
 
     def _headers(self) -> dict[str, str]:
         headers = {
-            "Accept": "application/json, text/plain, */*",
-            "Content-Type": "application/json",
-            "x-api-version": API_VERSION,
-            "x-app-version": APP_VERSION,
-            "x-brand-prefix": BRAND_PREFIX,
+            "Accept": "*/*",
+            "Content-Type": "application/json;charset=utf-8",
+            "Referer": f"{FLEET_BASE_URL}/splash",
         }
         if xsrf := self._xsrf_token():
             headers["x-xsrf-token"] = xsrf

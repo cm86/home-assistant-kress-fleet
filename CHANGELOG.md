@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.21 - 2026-10-01
+
+- Fix Kress Fleet HTTP 406 authentication/API failures by matching the request headers used by the Fleet web client.
+- Remove obsolete API/app/brand request headers that can cause `/api/actor` to return `406 Not Acceptable`.
+- No changes to mower, map or coverage behavior.
+
+
 ## 0.3.20 - 2026-09-08
 
 ### Fixed

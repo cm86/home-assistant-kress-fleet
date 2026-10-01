@@ -160,6 +160,22 @@ async def _async_prepare_initial_device_names(
             mower.name = f"Kress Fleet {index}"
 
 
+async def async_migrate_entry(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> bool:
+    """Migrate legacy Kress Fleet config entries."""
+    if entry.version == 1:
+        hass.config_entries.async_update_entry(
+            entry,
+            version=2,
+        )
+        _LOGGER.info(
+            "Migrated Kress Fleet config entry from version 1 to version 2"
+        )
+
+    return entry.version == 2
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Kress Fleet from a config entry."""
     started = monotonic()

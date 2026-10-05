@@ -65,7 +65,7 @@ def _restore_known_device_metadata(
     Fleet mower name on the next integration reload.
     """
     registry = dr.async_get(hass)
-    for device in registry.devices.values():
+    for device in registry.devices:
         config_entries = getattr(device, "config_entries", set())
         if entry.entry_id not in config_entries:
             continue

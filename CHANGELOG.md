@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 - 2026-10-27
+
+- Version alignment release: moves the stable release line from 0.3.x to 0.5.0.
+- The discontinued 0.4.0 beta series was experimental and is no longer maintained.
+- This release intentionally keeps the current stable Fleet functionality unchanged.
+- The new version number allows users of the old 0.4.0 beta releases to receive 0.5.0 as a normal HACS update instead of requiring a manual downgrade.
+
+
 ## 0.3.24 - 2026-10-01
 
 - Fix Fleet coverage requests for the current Kress Fleet web API.

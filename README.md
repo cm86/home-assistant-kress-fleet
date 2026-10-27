@@ -200,3 +200,17 @@ Both upstream projects are GPL-3.0. This derivative project is distributed under
 well. See [LICENSE](LICENSE), [NOTICE](NOTICE) and [UPSTREAM.md](UPSTREAM.md).
 
 No endorsement by the upstream authors or contributors is claimed or implied.
+
+## Development note
+
+This integration was developed collaboratively by **[@cm86](https://github.com/cm86)** and OpenAI's ChatGPT.
+
+ChatGPT was used extensively for code generation, debugging, architecture discussions, testing assistance and documentation. The project is maintained, reviewed and validated by **[@cm86](https://github.com/cm86)**.
+
+## Version 0.4.0 beta notice
+
+The `0.4.0` beta series was experimental and has been discontinued.
+
+The stable release line has been moved from `0.3.x` to `0.5.0` to cleanly replace those experimental versions. This is intentionally a version-alignment release; the current stable Fleet functionality remains unchanged.
+
+Users still running an old `0.4.0b*` release can now update normally to `0.5.0` through HACS instead of requiring a manual downgrade.
